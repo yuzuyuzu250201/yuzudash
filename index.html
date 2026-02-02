@@ -11,33 +11,34 @@
         canvas { background: var(--bg-color); display: block; }
         .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.4); color: white; z-index: 10; backdrop-filter: blur(4px); }
         #start-ui { background: linear-gradient(135deg, rgba(255,218,68,0.9), rgba(255,126,179,0.9)); }
-        h1 { font-size: 60px; margin: 0; text-shadow: 3px 3px 0px #ff7eb3; }
-        #best-score-ui { font-size: 20px; margin-bottom: 20px; color: #fff; }
+        h1 { font-size: 60px; margin-bottom: 10px; text-shadow: 3px 3px 0px #ff7eb3; }
+        .best-score { font-size: 24px; margin-bottom: 20px; color: #fff; }
         #count-ui { font-size: 100px; font-weight: bold; display: none; background: transparent; }
         .btn { padding: 15px 40px; font-size: 28px; cursor: pointer; background: white; color: #ff7eb3; border: none; border-radius: 50px; font-family: 'Gamja Flower', cursive; box-shadow: 0 8px 0px #e6e6e6; transition: 0.1s; }
         .btn:active { transform: translateY(4px); box-shadow: 0 4px 0px #e6e6e6; }
         #hud-top { position: absolute; top: 20px; width: 100%; padding: 0 20px; display: flex; justify-content: space-between; align-items: flex-start; color: white; font-size: 24px; pointer-events: none; z-index: 5; box-sizing: border-box; }
-        .hud-group { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
+        .hud-group { display: flex; flex-direction: column; gap: 5px; text-align: right; }
         .hud-item { background: rgba(0,0,0,0.3); padding: 5px 15px; border-radius: 20px; border: 2px solid rgba(255,255,255,0.2); }
+        #life-display { color: #ff7eb3; font-size: 28px; }
+        #warning-label { position: absolute; right: 20px; font-size: 50px; color: red; display: none; font-weight: bold; text-shadow: 2px 2px white; z-index: 8; }
     </style>
 </head>
-<body>
-
-    <div id="game-container">
+<body oncontextmenu="return false;"> <div id="game-container">
         <div id="hud-top">
             <div id="life-display" class="hud-item">❤️❤️❤️</div>
             <div class="hud-group">
-                <div class="hud-item" id="best-display">최고: 0</div>
+                <div id="best-display" style="font-size: 14px; margin-right: 10px;">최고 기록: 0</div>
                 <div class="hud-item" id="mach-display">🚀 마하 1</div>
                 <div class="hud-item" id="score-display">⭐ 0 / 5000</div>
             </div>
         </div>
 
+        <div id="warning-label">!</div>
+
         <div id="start-ui" class="overlay">
             <h1>Yuzu Dash</h1>
-            <div id="best-score-ui">최고 기록: 0</div>
+            <div id="main-best-score" class="best-score">개인 최고 기록: 0</div>
             <button class="btn" onclick="prepareGame()">비행 시작!</button>
-            <p style="font-size:14px; margin-top:10px;">Q키 또는 우클릭으로 공격!</p>
         </div>
 
         <div id="count-ui" class="overlay"></div>
@@ -52,41 +53,35 @@
         const machDisplay = document.getElementById('mach-display');
         const scoreDisplay = document.getElementById('score-display');
         const lifeDisplay = document.getElementById('life-display');
-        const bestUI = document.getElementById('best-score-ui');
-        const bestHUD = document.getElementById('best-display');
+        const warningLabel = document.getElementById('warning-label');
+        const mainBestScore = document.getElementById('main-best-score');
+        const bestDisplay = document.getElementById('best-display');
 
         let gameState = 'STOP';
-        let score = 0, lives = 3, gameSpeed = 2.0, invincible = 0, frameCount = 0;
+        let score = 0, lives = 3, gameSpeed = 2.0, invincible = 0, currentMach = 1;
+        let pipes = [], bullets = [], enemies = [];
         
-        // 이미지 로드
         const yuzuImg = new Image(); yuzuImg.src = 'yuzu.webp';
         const enemyImg = new Image(); enemyImg.src = 'enemy_wildyuzu.webp';
-        const attackImg = new Image(); attackImg.src = 'attack.webp';
+        const bulletImg = new Image(); bulletImg.src = 'attack.webp';
 
         const player = { x: 60, y: 300, width: 45, height: 45, gravity: 0.22, velocity: 0, jump: -6.5, maxVelocity: 6 };
-        const pipes = [], enemies = [], bullets = [], warnings = [];
-        const pipeWidth = 60, pipeGap = 220;
 
-        // 사운드 시스템
-        function playSound(freq, type, duration, volume = 0.05) {
+        // 최고 기록 로드
+        let highscore = localStorage.getItem('yuzuHighScore') || 0;
+        mainBestScore.innerText = `개인 최고 기록: ${highscore}`;
+        bestDisplay.innerText = `최고 기록: ${highscore}`;
+
+        function playSound(freq, type, duration, vol = 0.05) {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
                 osc.connect(gain); gain.connect(audioCtx.destination);
                 osc.start(); osc.stop(audioCtx.currentTime + duration);
             } catch(e) {}
-        }
-
-        // 초기 최고 기록 불러오기
-        let highScore = localStorage.getItem('yuzuHighScore') || 0;
-        updateBestDisplay();
-
-        function updateBestDisplay() {
-            bestUI.innerText = `최고 기록: ${highScore}`;
-            bestHUD.innerText = `최고: ${highScore}`;
         }
 
         function prepareGame() {
@@ -95,55 +90,72 @@
             resetGame();
             let count = 3;
             countUI.innerText = count;
+            playSound(523, 'sine', 0.2);
             const timer = setInterval(() => {
                 count--;
-                if (count >= 0) {
-                    countUI.innerText = count === 0 ? "GO!" : count;
-                    playSound(count === 0 ? 1046 : 523, 'sine', 0.3);
-                } else {
-                    clearInterval(timer);
-                    countUI.style.display = 'none';
-                    gameState = 'PLAYING';
-                    animate();
-                }
+                if (count > 0) { countUI.innerText = count; playSound(523, 'sine', 0.2); }
+                else if (count === 0) { countUI.innerText = "GO!"; playSound(1046, 'sine', 0.4); }
+                else { clearInterval(timer); countUI.style.display = 'none'; gameState = 'PLAYING'; animate(); }
             }, 800);
         }
 
         function resetGame() {
             player.y = 300; player.velocity = 0;
-            pipes.length = 0; enemies.length = 0; bullets.length = 0; warnings.length = 0;
-            score = 0; lives = 3; gameSpeed = 2.0; invincible = 0; frameCount = 0;
+            pipes = []; bullets = []; enemies = [];
+            score = 0; lives = 3; gameSpeed = 2.0; invincible = 0; currentMach = 1;
             updateHUD();
         }
 
         function updateHUD() {
             scoreDisplay.innerText = `⭐ ${score} / 5000`;
-            const machValue = 1 + Math.floor(score / 50);
-            const currentMach = parseInt(machDisplay.innerText.replace(/[^0-9]/g, ""));
-            if (machValue > currentMach) {
-                playSound(880, 'triangle', 0.2, 0.1); // 마하 상승 띠링!
+            const newMach = 1 + Math.floor(score / 50);
+            if (newMach > currentMach) {
+                currentMach = newMach;
+                playSound(880, 'triangle', 0.1, 0.1); // 띠링! 효과음
+                setTimeout(() => playSound(1320, 'triangle', 0.1, 0.1), 50); 
             }
-            machDisplay.innerText = `🚀 마하 ${machValue}`;
+            machDisplay.innerText = `🚀 마하 ${currentMach}`;
             lifeDisplay.innerText = "❤️".repeat(lives);
+            if(score > highscore) {
+                highscore = score;
+                localStorage.setItem('yuzuHighScore', highscore);
+                bestDisplay.innerText = `최고 기록: ${highscore}`;
+            }
         }
 
-        function shoot() {
-            if (gameState !== 'PLAYING') return;
-            bullets.push({ x: player.x + player.width, y: player.y + player.height/2 - 10, w: 30, h: 20 });
-            playSound(1200, 'sine', 0.1, 0.03);
+        function spawnEnemy() {
+            const spawnY = Math.random() * (canvas.height - 100) + 50;
+            warningLabel.style.top = spawnY + "px";
+            warningLabel.style.display = "block";
+            playSound(300, 'square', 0.1, 0.1);
+            
+            setTimeout(() => {
+                warningLabel.style.display = "none";
+                if(gameState === 'PLAYING') {
+                    enemies.push({ x: canvas.width, y: spawnY, width: 40, height: 40, speed: gameSpeed + 2 });
+                }
+            }, 1000);
         }
 
+        let frameCount = 0;
         function animate() {
             if (gameState !== 'PLAYING') return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (invincible > 0) invincible--;
 
-            // 플레이어 물리
+            // 물리 및 플레이어
             player.velocity += player.gravity;
             if (player.velocity > player.maxVelocity) player.velocity = player.maxVelocity;
             player.y += player.velocity;
 
-            // 플레이어 그리기
+            // 나락 체크 (즉시 게임오버)
+            if (player.y + player.height > canvas.height) {
+                gameOver("나락으로 떨어졌습니다 GAME OVER!");
+                return;
+            }
+            if (player.y < 0) player.y = 0;
+
+            // 그리기 (무적 깜빡임)
             ctx.save();
             if (invincible % 10 < 5) {
                 ctx.setLineDash([8, 4]); ctx.strokeStyle = 'white'; ctx.lineWidth = 3;
@@ -152,99 +164,79 @@
             }
             ctx.restore();
 
-            // 파이프 로직
+            // 파이프
             if (frameCount % 140 === 0) {
-                let pipeY = Math.random() * (canvas.height - pipeGap - 150) + 75;
+                let pipeY = Math.random() * (canvas.height - 370) + 75;
                 pipes.push({ x: canvas.width, y: pipeY, passed: false });
             }
             pipes.forEach((p, i) => {
                 p.x -= gameSpeed;
                 ctx.fillStyle = '#77b255';
-                ctx.fillRect(p.x, 0, pipeWidth, p.y);
-                ctx.fillRect(p.x, p.y + pipeGap, pipeWidth, canvas.height);
-                if (!p.passed && p.x + pipeWidth < player.x) {
-                    score++; p.passed = true;
-                    if (score % 50 === 0) gameSpeed += 0.3;
-                    if (score > highScore) { highScore = score; localStorage.setItem('yuzuHighScore', highScore); updateBestDisplay(); }
-                    updateHUD();
-                    if (score >= 5000) gameClear();
-                }
-                if (invincible === 0 && player.x < p.x + pipeWidth && player.x + player.width > p.x && (player.y < p.y || player.y + player.height > p.y + pipeGap)) takeDamage();
+                ctx.fillRect(p.x, 0, 60, p.y);
+                ctx.fillRect(p.x, p.y + 220, 60, canvas.height);
+                if (!p.passed && p.x + 60 < player.x) { score++; p.passed = true; updateHUD(); if(score >= 5000) gameClear(); }
+                if (invincible === 0 && player.x < p.x + 60 && player.x + 45 > p.x && (player.y < p.y || player.y + 45 > p.y + 220)) takeDamage();
             });
+            pipes = pipes.filter(p => p.x + 60 > 0);
 
-            // 방해꾼(와일드 유즈) 시스템
-            if (frameCount % 300 === 0) { // 약 5초마다
-                let targetY = Math.random() * (canvas.height - 50);
-                warnings.push({ y: targetY, timer: 60 });
-                playSound(300, 'square', 0.2, 0.05);
-            }
-            warnings.forEach((w, i) => {
-                w.timer--;
-                ctx.fillStyle = 'red'; ctx.font = 'bold 30px Arial';
-                if (w.timer % 10 < 5) ctx.fillText('⚠️', canvas.width - 40, w.y + 30);
-                if (w.timer <= 0) {
-                    enemies.push({ x: canvas.width, y: w.y, w: 45, h: 45 });
-                    warnings.splice(i, 1);
-                }
-            });
-
-            enemies.forEach((e, i) => {
-                e.x -= gameSpeed * 2.5;
-                ctx.drawImage(enemyImg, e.x, e.y, e.w, e.h);
-                if (invincible === 0 && player.x < e.x + e.w && player.x + player.width > e.x && player.y < e.y + e.h && player.y + player.height > e.y) {
-                    enemies.splice(i, 1); takeDamage();
-                }
-                if (e.x + e.w < 0) enemies.splice(i, 1);
-            });
-
-            // 공격 시스템
-            bullets.forEach((b, bi) => {
+            // 공격 발사체
+            bullets.forEach((b, i) => {
                 b.x += 7;
-                ctx.drawImage(attackImg, b.x, b.y, b.w, b.h);
+                ctx.drawImage(bulletImg, b.x, b.y, 30, 20);
                 enemies.forEach((e, ei) => {
-                    if (b.x < e.x + e.w && b.x + b.w > e.x && b.y < e.y + e.h && b.y + b.h > e.y) {
-                        enemies.splice(ei, 1); bullets.splice(bi, 1);
-                        playSound(600, 'sine', 0.1, 0.05);
+                    if (b.x < e.x + e.width && b.x + 30 > e.x && b.y < e.y + e.height && b.y + 20 > e.y) {
+                        enemies.splice(ei, 1); bullets.splice(i, 1);
+                        playSound(600, 'sine', 0.1);
                     }
                 });
-                if (b.x > canvas.width) bullets.splice(bi, 1);
             });
+            bullets = bullets.filter(b => b.x < canvas.width);
 
-            if (player.y + player.height > canvas.height || player.y < 0) { if (invincible === 0) takeDamage(); player.y = 300; }
-            
-            pipes.filter(p => p.x + pipeWidth > 0);
+            // 방해꾼 와일드 유즈
+            if (frameCount % 300 === 0) spawnEnemy();
+            enemies.forEach((e, i) => {
+                e.x -= e.speed;
+                ctx.drawImage(enemyImg, e.x, e.y, e.width, e.height);
+                if (invincible === 0 && player.x < e.x + e.width && player.x + 45 > e.x && player.y < e.y + e.height && player.y + 45 > e.y) {
+                    takeDamage(); enemies.splice(i, 1);
+                }
+            });
+            enemies = enemies.filter(e => e.x + 40 > 0);
+
             frameCount++;
             requestAnimationFrame(animate);
         }
 
         function takeDamage() {
-            lives--; invincible = 90; playSound(150, 'square', 0.3); updateHUD();
-            if (lives <= 0) gameOver();
+            lives--; invincible = 90; playSound(200, 'square', 0.3); updateHUD();
+            if (lives <= 0) gameOver("라이프를 모두 잃었습니다!");
         }
 
-        function gameOver() {
+        function gameOver(msg) {
             gameState = 'STOP';
-            alert(`게임 오버! 최종 점수: ${score}`);
+            alert(msg + `\n최종 점수: ${score}`);
+            mainBestScore.innerText = `개인 최고 기록: ${highscore}`;
             startUI.style.display = 'flex';
         }
 
-        function gameClear() {
-            gameState = 'STOP';
-            alert("🎊 5,000점 돌파! 유즈 대쉬 클리어! 🎊");
-            startUI.style.display = 'flex';
-        }
+        function gameClear() { gameState = 'STOP'; alert("🎊 5000개 돌파! 게임 클리어! 🎊"); startUI.style.display = 'flex'; }
 
         // 컨트롤
-        window.addEventListener('mousedown', (e) => {
-            if (e.button === 0) { if (gameState === 'PLAYING') player.velocity = player.jump; }
-            else if (e.button === 2) { shoot(); }
-        });
-        window.addEventListener('contextmenu', (e) => e.preventDefault()); // 우클릭 메뉴 방지
         window.addEventListener('keydown', (e) => {
+            if (gameState !== 'PLAYING') return;
             if (e.code === 'Space') player.velocity = player.jump;
-            if (e.code === 'KeyQ') shoot();
+            if (e.code === 'KeyQ') fireBullet();
+        });
+        window.addEventListener('mousedown', (e) => {
+            if (gameState !== 'PLAYING') return;
+            if (e.button === 0) player.velocity = player.jump;
+            if (e.button === 2) fireBullet();
         });
 
+        function fireBullet() {
+            bullets.push({ x: player.x + 40, y: player.y + 10 });
+            playSound(400, 'triangle', 0.1);
+        }
     </script>
 </body>
 </html>
