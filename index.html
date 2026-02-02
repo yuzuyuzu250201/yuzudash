@@ -25,20 +25,15 @@
 
         canvas { background: var(--bg-color); display: block; }
         
-        /* 공통 UI 스타일 (라운드 & 부드러움) */
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             background: rgba(0,0,0,0.4); color: white; z-index: 10;
-            backdrop-filter: blur(4px); /* 배경 흐리게 */
+            backdrop-filter: blur(4px);
         }
 
-        #start-ui { 
-            background: linear-gradient(135deg, rgba(255,218,68,0.9), rgba(255,126,179,0.9)); 
-        }
-
+        #start-ui { background: linear-gradient(135deg, rgba(255,218,68,0.9), rgba(255,126,179,0.9)); }
         h1 { font-size: 60px; margin-bottom: 20px; text-shadow: 3px 3px 0px #ff7eb3; }
-        
         #count-ui { font-size: 100px; font-weight: bold; display: none; background: transparent; }
         
         .btn { 
@@ -47,33 +42,37 @@
             border-radius: 50px; font-family: 'Gamja Flower', cursive;
             box-shadow: 0 8px 0px #e6e6e6; transition: 0.1s;
         }
-
         .btn:active { transform: translateY(4px); box-shadow: 0 4px 0px #e6e6e6; }
         
-        /* HUD 스타일 */
-        #hud {
-            position: absolute; top: 20px; width: 100%; px: 20px;
-            display: flex; flex-direction: column; align-items: center;
-            color: white; font-size: 22px; pointer-events: none; z-index: 5;
+        /* HUD 설정 */
+        #hud-top {
+            position: absolute; top: 20px; width: 100%; padding: 0 20px;
+            display: flex; justify-content: space-between; align-items: flex-start;
+            color: white; font-size: 24px; pointer-events: none; z-index: 5; box-sizing: border-box;
         }
         
+        .hud-group { display: flex; flex-direction: column; gap: 5px; }
         .hud-item {
-            background: rgba(0,0,0,0.3); padding: 5px 20px; 
-            border-radius: 20px; margin-bottom: 5px; border: 2px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.3); padding: 5px 15px; 
+            border-radius: 20px; border: 2px solid rgba(255,255,255,0.2);
         }
+        #life-display { color: #ff7eb3; font-size: 28px; }
     </style>
 </head>
 <body>
 
     <div id="game-container">
-        <div id="hud">
-            <div class="hud-item" id="mach-display">🚀 마하 1.00</div>
-            <div class="hud-item" id="score-display">점수 : 0</div>
+        <div id="hud-top">
+            <div id="life-display" class="hud-item">❤️❤️❤️</div>
+            <div class="hud-group">
+                <div class="hud-item" id="mach-display">🚀 마하 1</div>
+                <div class="hud-item" id="score-display">⭐ 0 / 5000</div>
+            </div>
         </div>
 
         <div id="start-ui" class="overlay">
             <h1>Yuzu Dash</h1>
-            <button class="btn" onclick="prepareGame()">시작하기!</button>
+            <button class="btn" onclick="prepareGame()">비행 시작!</button>
         </div>
 
         <div id="count-ui" class="overlay"></div>
@@ -88,27 +87,29 @@
         const countUI = document.getElementById('count-ui');
         const machDisplay = document.getElementById('mach-display');
         const scoreDisplay = document.getElementById('score-display');
+        const lifeDisplay = document.getElementById('life-display');
 
         let gameState = 'STOP';
         let score = 0;
-        let gameSpeed = 2.0; 
-        let mach = 1.0;
+        let lives = 3;
+        let gameSpeed = 2.0;
+        let invincible = 0; // 충돌 후 무적 시간
         
         const yuzuImg = new Image();
         yuzuImg.src = 'yuzu.webp';
 
-        // --- 물리 수치 조정 (체공 시간 증가) ---
+        // --- 1. 속도 조절: 중력과 낙하 속도를 더 부드럽게 ---
         const player = {
             x: 60, y: 300, width: 45, height: 45,
-            gravity: 0.28,    // 훨씬 천천히 떨어지게 조정 (기존 0.45)
+            gravity: 0.22,    // 기존 0.28 -> 0.22 (더 천천히 추락)
             velocity: 0,
-            jump: -7,        // 점프 힘 조정
-            maxVelocity: 8    // 낙하 속도 제한 (너무 빨라지지 않게)
+            jump: -6.5,       // 중력에 맞춰 점프도 살짝 조정
+            maxVelocity: 6    // 최대 낙하 속도 제한
         };
 
         const pipes = [];
         const pipeWidth = 60;
-        const pipeGap = 200; // 통과 공간을 더 넉넉하게
+        const pipeGap = 220; // 기존 200 -> 220 (간격을 더 넓힘)
 
         function playSound(freq, type, duration) {
             try {
@@ -122,7 +123,7 @@
                 gainNode.connect(audioCtx.destination);
                 oscillator.start();
                 oscillator.stop(audioCtx.currentTime + duration);
-            } catch(e) { console.log("Sound error"); }
+            } catch(e) {}
         }
 
         function prepareGame() {
@@ -132,16 +133,16 @@
             
             let count = 3;
             countUI.innerText = count;
-            playSound(523.25, 'sine', 0.2); // 도
+            playSound(523, 'sine', 0.2);
 
             const timer = setInterval(() => {
                 count--;
                 if (count > 0) {
                     countUI.innerText = count;
-                    playSound(523.25, 'sine', 0.2);
+                    playSound(523, 'sine', 0.2);
                 } else if (count === 0) {
                     countUI.innerText = "GO!";
-                    playSound(1046.50, 'sine', 0.4); // 높은 도
+                    playSound(1046, 'sine', 0.4);
                 } else {
                     clearInterval(timer);
                     countUI.style.display = 'none';
@@ -153,13 +154,16 @@
 
         function resetGame() {
             player.y = 300; player.velocity = 0;
-            pipes.length = 0; score = 0; gameSpeed = 2.2; mach = 1.0;
-            frameCount = 0; updateHUD();
+            pipes.length = 0; score = 0; lives = 3; gameSpeed = 2.0;
+            invincible = 0; updateHUD();
         }
 
         function updateHUD() {
-            scoreDisplay.innerText = `⭐ 점수 : ${score}`;
-            machDisplay.innerText = `🚀 마하 ${mach.toFixed(2)}`;
+            scoreDisplay.innerText = `⭐ ${score} / 5000`;
+            // --- 3. 마하 시스템: 50개 통과 시마다 1씩 증가 ---
+            const machValue = 1 + Math.floor(score / 50);
+            machDisplay.innerText = `🚀 마하 ${machValue}`;
+            lifeDisplay.innerText = "❤️".repeat(lives);
         }
 
         let frameCount = 0;
@@ -167,23 +171,27 @@
             if (gameState !== 'PLAYING') return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 물리 (낙하 속도 제한 추가)
+            if (invincible > 0) invincible--;
+
+            // 물리
             player.velocity += player.gravity;
             if (player.velocity > player.maxVelocity) player.velocity = player.maxVelocity;
             player.y += player.velocity;
 
-            // 유즈 & 점선 (귀엽게)
+            // 유즈 & 점선 구 (무적 상태일 때 깜빡임)
             ctx.save();
-            ctx.setLineDash([8, 4]);
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(player.x + player.width/2, player.y + player.height/2, 35, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.drawImage(yuzuImg, player.x, player.y, player.width, player.height);
+            if (invincible % 10 < 5) {
+                ctx.setLineDash([8, 4]);
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(player.x + player.width/2, player.y + player.height/2, 35, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.drawImage(yuzuImg, player.x, player.y, player.width, player.height);
+            }
             ctx.restore();
 
-            // 장애물 (둥근 기둥)
+            // 장애물
             if (frameCount % 140 === 0) {
                 let pipeY = Math.random() * (canvas.height - pipeGap - 150) + 75;
                 pipes.push({ x: canvas.width, y: pipeY, passed: false });
@@ -191,39 +199,59 @@
 
             for (let i = pipes.length - 1; i >= 0; i--) {
                 pipes[i].x -= gameSpeed;
-                
                 ctx.fillStyle = '#77b255';
-                // 기둥 끝을 둥글게 처리 (선택 사항이지만 간단히 사각형 유지)
                 ctx.fillRect(pipes[i].x, 0, pipeWidth, pipes[i].y);
                 ctx.fillRect(pipes[i].x, pipes[i].y + pipeGap, pipeWidth, canvas.height);
 
                 if (!pipes[i].passed && pipes[i].x + pipeWidth < player.x) {
                     score++;
                     pipes[i].passed = true;
-                    if (score % 5 === 0) gameSpeed += 0.1; // 좀 더 부드러운 가속
+                    if (score % 50 === 0) gameSpeed += 0.3; // 마하 오를 때 속도 증가
                     updateHUD();
+                    
+                    // --- 4. 클리어 포인트: 5000개 통과 시 ---
+                    if (score >= 5000) {
+                        gameClear();
+                        return;
+                    }
                 }
 
-                if (player.x + 5 < pipes[i].x + pipeWidth && player.x + player.width - 5 > pipes[i].x &&
+                // 충돌 처리 (라이프 차감)
+                if (invincible === 0 && 
+                    player.x + 5 < pipes[i].x + pipeWidth && player.x + player.width - 5 > pipes[i].x &&
                     (player.y + 5 < pipes[i].y || player.y + player.height - 5 > pipes[i].y + pipeGap)) {
-                    gameOver();
+                    takeDamage();
                 }
                 if (pipes[i].x + pipeWidth < 0) pipes.splice(i, 1);
             }
 
-            mach = 1.0 + (score * 0.05) + (frameCount * 0.0005);
-            updateHUD();
-
-            if (player.y + player.height > canvas.height || player.y < 0) gameOver();
+            if (player.y + player.height > canvas.height || player.y < 0) {
+                if (invincible === 0) takeDamage();
+                player.y = 300; // 바닥 추락 시 위치 복구
+            }
 
             frameCount++;
             requestAnimationFrame(animate);
         }
 
+        function takeDamage() {
+            lives--;
+            invincible = 90; // 약 1.5초 무적
+            playSound(200, 'square', 0.3);
+            updateHUD();
+            if (lives <= 0) gameOver();
+        }
+
         function gameOver() {
             gameState = 'STOP';
-            playSound(261.63, 'square', 0.5);
-            alert(`앗! 충돌했어요!\n점수: ${score}\n기록: 마하 ${mach.toFixed(2)}`);
+            alert(`게임 오버! 최종 점수: ${score}\n다시 도전해 보세요!`);
+            startUI.style.display = 'flex';
+        }
+
+        function gameClear() {
+            gameState = 'STOP';
+            playSound(523, 'sine', 0.1); playSound(659, 'sine', 0.1); playSound(783, 'sine', 0.5);
+            alert("🎊 축하합니다! 5,000개의 파이프를 돌파하여 게임을 클리어하셨습니다! 🎊");
             startUI.style.display = 'flex';
         }
 
