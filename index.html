@@ -2,35 +2,38 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Yuzu Dash - New Item Update</title>
+    <title>Yuzu Dash - Patch 1.15</title>
     <link href="https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap" rel="stylesheet">
     <style>
-        :root { --primary-color: #ffda44; --accent-color: #ff7eb3; --neon-blue: #00f2fe; }
+        :root { --primary-color: #ffda44; --accent-color: #ff7eb3; --neon-blue: #00f2fe; --prestige-gold: #ffaa00; }
         body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #0a0a12; font-family: 'Gamja Flower', cursive; overflow: hidden; user-select:none; color: white; }
+        
         #game-container { position: relative; width: 500px; height: 750px; box-shadow: 0 0 50px rgba(100,149,237,0.3); border-radius: 30px; overflow: hidden; background: #000; }
         canvas { display: block; width: 100%; height: 100%; }
         
         .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); z-index: 10; backdrop-filter: blur(8px); display: none; }
         #start-ui { display: flex; background: linear-gradient(135deg, rgba(255,218,68,0.8), rgba(255,126,179,0.8)); }
         
-        .menu-page { padding: 20px; text-align: center; width: 90%; background: rgba(255,255,255,0.1); border-radius: 20px; border: 1px solid var(--neon-blue); max-height: 80%; overflow-y: auto; }
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }
+        .menu-page { padding: 20px; text-align: center; width: 90%; background: rgba(255,255,255,0.1); border-radius: 20px; border: 1px solid var(--neon-blue); max-height: 85%; overflow-y: auto; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 15px 0; }
         
         .item-slot { padding: 8px; background: rgba(0,0,0,0.5); border: 2px solid #555; border-radius: 12px; cursor: pointer; transition: 0.2s; position: relative; }
-        .item-slot img { width: 50px; height: 50px; display: block; margin: 0 auto 5px; filter: grayscale(1); opacity: 0.4; }
+        .item-slot img { width: 55px; height: 55px; display: block; margin: 0 auto 5px; filter: grayscale(1); opacity: 0.4; transition: 0.3s; }
         .item-slot.owned img { filter: grayscale(0); opacity: 1; }
         .item-slot.active { border-color: var(--primary-color); background: rgba(255, 218, 68, 0.2); box-shadow: 0 0 15px var(--primary-color); }
-        .item-slot .name { font-size: 14px; font-weight: bold; display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .item-slot .name { font-size: 15px; font-weight: bold; display: block; }
         .item-slot .desc { font-size: 10px; color: #bbb; display: block; line-height: 1.2; margin-top: 2px; }
-        .item-slot .price-tag { position: absolute; top: -5px; right: -5px; background: gold; color: black; font-size: 10px; padding: 2px 5px; border-radius: 8px; font-weight: bold; }
+        .item-slot.prestige { border-color: var(--prestige-gold); }
+        .item-slot.prestige.active { box-shadow: 0 0 20px var(--prestige-gold); }
 
-        .btn { padding: 12px 20px; font-size: 22px; cursor: pointer; background: white; color: #ff7eb3; border: none; border-radius: 50px; font-family: 'Gamja Flower', cursive; box-shadow: 0 4px 0px #e6e6e6; transition: 0.1s; width: 200px; margin: 8px; outline: none; }
+        .btn { padding: 12px 30px; font-size: 24px; cursor: pointer; background: white; color: #ff7eb3; border: none; border-radius: 50px; font-family: 'Gamja Flower', cursive; box-shadow: 0 4px 0px #e6e6e6; transition: 0.1s; width: 220px; margin: 8px; outline: none; }
         .btn:active { transform: translateY(2px); box-shadow: 0 2px 0px #e6e6e6; }
         
         #hud-top { position: absolute; top: 25px; width: 100%; padding: 0 25px; display: flex; justify-content: space-between; pointer-events: none; z-index: 5; box-sizing: border-box; }
         .hud-item { background: rgba(0,0,0,0.6); padding: 6px 15px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.2); margin-bottom: 5px; font-size: 18px; }
-        #hover-gauge { width: 100px; height: 8px; background: #333; border-radius: 4px; display: none; margin-top: 5px; }
-        #hover-fill { height: 100%; background: var(--neon-blue); border-radius: 4px; width: 100%; }
+        #hover-bar { width: 100px; height: 8px; background: #333; border-radius: 4px; margin-top: 5px; overflow: hidden; display: none; }
+        #hover-fill { width: 100%; height: 100%; background: var(--neon-blue); transition: width 0.1s linear; }
+        #warning-label { position: absolute; right: 30px; font-size: 60px; color: #ff4444; display: none; font-weight: bold; text-shadow: 0 0 15px white; z-index: 8; pointer-events: none; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -40,7 +43,7 @@
             <div>
                 <div id="life-display" class="hud-item">❤️❤️❤️</div>
                 <div class="hud-item" style="color: gold;">Coin: <span id="current-coin">0</span> (+<span id="total-hold-coin">0</span>)</div>
-                <div id="hover-gauge"><div id="hover-fill"></div></div>
+                <div id="hover-bar"><div id="hover-fill"></div></div>
             </div>
             <div style="text-align: right;">
                 <div class="hud-item" id="mach-display">🚀 마하 1</div>
@@ -48,20 +51,25 @@
             </div>
         </div>
 
+        <div id="warning-label">!</div>
+
         <div id="start-ui" class="overlay">
             <h1 style="font-size: 56px; margin: 0; text-shadow: 2px 2px #ff7eb3;">Yuzu Dash v1.15</h1>
             <div id="main-best-score" style="margin-bottom:15px; font-size: 20px;">최고 기록: 0</div>
             <div style="color: gold; font-size: 28px; margin-bottom: 20px;">Total Coin: <span id="start-total-coin">0</span></div>
             <button class="btn" onclick="prepareGame()">비행 시작!</button>
-            <button class="btn" style="background:#6fbcf0; color:white;" onclick="openPage('gacha-ui')">가챠 & 상점</button>
+            <button class="btn" style="background:#6fbcf0; color:white;" onclick="openPage('gacha-ui')">아이템 & 컬렉션</button>
             <button class="btn" style="background:#6fbcf0; color:white;" onclick="openPage('settings-ui')">설정</button>
         </div>
 
         <div id="gacha-ui" class="overlay">
             <div class="menu-page">
-                <h2>🎁 아이템 상점</h2>
-                <div style="font-size: 20px; color: gold; margin-bottom:12px;">보유: <span class="coin-val">0</span></div>
-                <button class="btn" style="width: 220px; background: gold; color: black;" onclick="drawGacha()">일반 가챠 (50 Coin)</button>
+                <h2 style="margin: 10px 0;">🎁 아이템 상점</h2>
+                <div style="font-size: 22px; color: gold; margin-bottom:12px;">보유 코인: <span class="coin-val">0</span></div>
+                <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn" style="width: 160px; font-size: 18px; background: gold; color: black;" onclick="drawGacha()">가챠(50)</button>
+                    <button id="buy-yuzu-btn" class="btn" style="width: 160px; font-size: 18px; background: var(--prestige-gold); color: white;" onclick="buyPrestige()">우쭐유즈(1000)</button>
+                </div>
                 <div class="grid" id="collection-grid"></div>
                 <button class="btn" style="background:#6fbcf0; color:white;" onclick="openPage('start-ui')">뒤로가기</button>
             </div>
@@ -70,8 +78,8 @@
         <div id="settings-ui" class="overlay">
             <div class="menu-page">
                 <h2>⚙️ 사운드 설정</h2>
-                <div style="margin:25px 0;">BGM: <input type="range" id="bgm-vol" min="0" max="1" step="0.1" value="0.5" oninput="updateVolume()"></div>
-                <div style="margin:25px 0;">SFX: <input type="range" id="sfx-vol" min="0" max="1" step="0.1" value="0.5" oninput="updateVolume()"></div>
+                <div style="margin:25px 0; font-size: 20px;">BGM: <input type="range" id="bgm-vol" min="0" max="1" step="0.1" value="0.5" oninput="updateVolume()"></div>
+                <div style="margin:25px 0; font-size: 20px;">SFX: <input type="range" id="sfx-vol" min="0" max="1" step="0.1" value="0.5" oninput="updateVolume()"></div>
                 <button class="btn" style="background:#6fbcf0; color:white;" onclick="openPage('start-ui')">저장</button>
             </div>
         </div>
@@ -83,16 +91,17 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const warningLabel = document.getElementById('warning-label');
         const bgm = new Audio('FutureJuice.mp3'); bgm.loop = true;
 
         const ITEM_LIST = [
-            { id: 'cutlet', name: '돈까쓰', desc: '라이프+1', img: 'gacha_don.webp', type: 'gacha' },
-            { id: 'tangerine', name: '유즈귤', desc: '3방향발사', img: 'gacha_gyul.webp', type: 'gacha' },
-            { id: 'lemon', name: '레몬', desc: '괴즈 처치시 코인 100%', img: 'gacha_lemon.webp', type: 'gacha' },
-            { id: 'altman', name: '샘 알트만', desc: 'W: 2초 호버링', img: 'gacha_altman.webp', type: 'gacha' },
-            { id: 'banana', name: '나노바나나', desc: '50파이프당 Life+1', img: 'gacha_banana.webp', type: 'gacha' },
-            { id: 'yuzudoro', name: 'YUZUDORO', desc: '1회 즉시 부활', img: 'gacha_yuzudoro.webp', type: 'gacha' },
-            { id: 'yuzu_1000', name: '우쭐유즈', desc: '기능 없음 (전설)', img: 'yuzu_1000.webp', type: 'shop', price: 1000 }
+            { id: 'cutlet', name: '돈까쓰', desc: '라이프+1', img: 'gacha_don.webp' },
+            { id: 'tangerine', name: '유즈귤', desc: '3방향발사', img: 'gacha_gyul.webp' },
+            { id: 'lemon', name: '레몬', desc: '괴즈 처치시 코인 100%', img: 'gacha_lemon.webp' },
+            { id: 'altman', name: '샘 알트만', desc: 'W: 2초간 호버링', img: 'gacha_altman.webp' },
+            { id: 'banana', name: '나노바나나', desc: '50파이프당 Life+1', img: 'gacha_banana.webp' },
+            { id: 'yuzudoro', name: 'YUZUDORO', desc: '1회 부활 가능', img: 'gacha_yuzudoro.webp' },
+            { id: 'proud', name: '우쭐유즈', desc: '명예 아이템 (기능 없음)', img: 'yuzu_1000.webp', price: 1000 }
         ];
 
         let data = {
@@ -107,9 +116,12 @@
         let gameState = 'STOP', score = 0, lives = 3, gameSpeed = 2.5, currentMach = 1, frameCount = 0;
         let pipes = [], bullets = [], enemies = [], coins = [], invincible = 0, sessionCoins = 0;
         
-        // 아이템 관련 상태
-        let hoverTime = 120, isHovering = false, canHover = true;
-        let revivesLeft = 0, pipesPassed = 0;
+        // 아이템 전용 상태
+        let canRevive = false;
+        let hoverTime = 2000; 
+        let isHovering = false;
+        let hoverCooldown = false;
+        let bananaCounter = 0;
 
         bgm.volume = data.bgmVol;
         document.getElementById('bgm-vol').value = data.bgmVol;
@@ -149,25 +161,33 @@
             document.getElementById('total-hold-coin').innerText = data.coins;
             document.querySelectorAll('.coin-val').forEach(el => el.innerText = data.coins);
             document.getElementById('main-best-score').innerText = `최고 기록: ${data.highscore}`;
+            
+            const btn = document.getElementById('buy-yuzu-btn');
+            if (data.collection.includes('proud')) {
+                btn.innerText = "구매 완료";
+                btn.disabled = true;
+                btn.style.opacity = "0.5";
+            }
         }
 
         function drawGacha() {
             if (data.coins < 50) { alert("코인이 부족해요!"); return; }
             data.coins -= 50;
-            const pool = ITEM_LIST.filter(i => i.type === 'gacha');
-            const picked = pool[Math.floor(Math.random() * pool.length)];
+            // 일반 아이템들만 가챠 대상 (우쭐유즈 제외)
+            const gachaPool = ITEM_LIST.filter(i => i.id !== 'proud');
+            const picked = gachaPool[Math.floor(Math.random() * gachaPool.length)];
             if (data.collection.includes(picked.id)) { data.coins += 10; alert(`중복! [${picked.name}] -> 10 Coin 페이백!`); }
             else { data.collection.push(picked.id); alert(`NEW! [${picked.name}] 획득!`); }
-            saveData(); updateDataUI(); renderCollection();
+            saveData(); renderCollection();
         }
 
-        function buyItem(id, price) {
-            if (data.coins < price) { alert("코인이 부족합니다!"); return; }
-            if (data.collection.includes(id)) { alert("이미 보유 중입니다."); return; }
-            data.coins -= price;
-            data.collection.push(id);
-            alert("구매 완료!");
-            saveData(); updateDataUI(); renderCollection();
+        function buyPrestige() {
+            if (data.coins < 1000) { alert("코인이 부족합니다! (1000 코인 필요)"); return; }
+            if (data.collection.includes('proud')) return;
+            data.coins -= 1000;
+            data.collection.push('proud');
+            alert("부의 상징, [우쭐유즈]를 획득했습니다!");
+            saveData(); renderCollection();
         }
 
         function renderCollection() {
@@ -176,29 +196,18 @@
                 const isOwned = data.collection.includes(item.id);
                 const isActive = data.activeItems.includes(item.id);
                 const slot = document.createElement('div');
-                slot.className = `item-slot ${isOwned ? 'owned' : ''} ${isActive ? 'active' : ''}`;
-                
-                if(!isOwned && item.type === 'shop') {
-                    const price = document.createElement('div');
-                    price.className = 'price-tag';
-                    price.innerText = item.price;
-                    slot.appendChild(price);
-                }
-
-                slot.innerHTML += `
+                slot.className = `item-slot ${isOwned ? 'owned' : ''} ${isActive ? 'active' : ''} ${item.id === 'proud' ? 'prestige' : ''}`;
+                slot.innerHTML = `
                     <img src="${item.img}">
-                    <span class="name">${item.name}</span>
-                    <span class="desc">${isOwned ? item.desc : (item.type === 'shop' ? '정가 구매' : '가챠 획득')}</span>
+                    <span class="name">${isOwned ? item.name : '???'}</span>
+                    <span class="desc">${isOwned ? item.desc : (item.id === 'proud' ? '정가: 1000' : '미획득')}</span>
                 `;
-
                 slot.onclick = () => { 
                     if(isOwned) { 
                         if(isActive) data.activeItems = data.activeItems.filter(i => i !== item.id);
                         else data.activeItems.push(item.id);
                         saveData(); renderCollection(); 
-                    } else if (item.type === 'shop') {
-                        buyItem(item.id, item.price);
-                    }
+                    } 
                 };
                 grid.appendChild(slot);
             });
@@ -230,14 +239,24 @@
         function resetGame() {
             player.y = 350; player.velocity = 0;
             pipes = []; bullets = []; enemies = []; coins = [];
-            score = 0; sessionCoins = 0; frameCount = 0; gameSpeed = 2.5; currentMach = 1;
+            score = 0; sessionCoins = 0; frameCount = 0;
+            gameSpeed = 2.5; currentMach = 1; invincible = 0;
             
             // 아이템 초기화
             lives = data.activeItems.includes('cutlet') ? 4 : 3;
-            revivesLeft = data.activeItems.includes('yuzudoro') ? 1 : 0;
-            hoverTime = 120; isHovering = false; canHover = true; pipesPassed = 0;
+            canRevive = data.activeItems.includes('yuzudoro');
+            bananaCounter = 0;
+            hoverTime = 2000;
+            isHovering = false;
+            hoverCooldown = false;
             
-            document.getElementById('hover-gauge').style.display = data.activeItems.includes('altman') ? 'block' : 'none';
+            if (data.activeItems.includes('altman')) {
+                document.getElementById('hover-bar').style.display = 'block';
+                document.getElementById('hover-fill').style.width = '100%';
+            } else {
+                document.getElementById('hover-bar').style.display = 'none';
+            }
+
             updateHUD();
         }
 
@@ -251,74 +270,117 @@
             if (newMach > currentMach) {
                 currentMach = newMach; gameSpeed += 0.5;
                 document.getElementById('mach-display').innerText = `🚀 마하 ${currentMach}`;
+                playSound(880, 'triangle', 0.2);
             }
+        }
+
+        function drawVisuals() {
+            let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            bgGrad.addColorStop(0, '#0f0c29'); bgGrad.addColorStop(0.5, '#302b63'); bgGrad.addColorStop(1, '#24243e');
+            ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+            for(let i=0; i<20; i++) {
+                let x = (i * 47 + frameCount * 0.5) % canvas.width;
+                let y = (i * 153) % canvas.height;
+                ctx.beginPath(); ctx.arc(x, y, 1.2, 0, Math.PI*2); ctx.fill();
+            }
+        }
+
+        function drawPipe(x, y) {
+            let pipeGrad = ctx.createLinearGradient(x, 0, x + 70, 0);
+            pipeGrad.addColorStop(0, '#4facfe'); pipeGrad.addColorStop(0.5, '#00f2fe'); pipeGrad.addColorStop(1, '#4facfe');
+            ctx.shadowBlur = 12; ctx.shadowColor = '#00f2fe';
+            ctx.fillStyle = pipeGrad;
+            ctx.fillRect(x, 0, 70, y); ctx.fillRect(x, y + 260, 70, canvas.height);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "white"; ctx.fillRect(x - 3, y - 12, 76, 12); ctx.fillRect(x - 3, y + 260, 76, 12);
+        }
+
+        function spawnEnemy() {
+            const sy = Math.random() * 500 + 100;
+            warningLabel.style.top = sy + "px";
+            warningLabel.style.display = "block";
+            playSound(300, 'square', 0.1);
+            setTimeout(() => { 
+                warningLabel.style.display = "none"; 
+                if(gameState === 'PLAYING') enemies.push({ x: 500, y: sy }); 
+            }, 800);
         }
 
         function animate() {
             if (gameState !== 'PLAYING') return;
-            
-            // 배경 드로잉
-            ctx.fillStyle = "#0f0c29"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+            drawVisuals();
             if (invincible > 0) invincible--;
 
-            // 샘 알트만: 호버링 처리
+            // 샘 알트만 호버링 로직
             if (isHovering && hoverTime > 0) {
                 player.velocity = 0;
-                hoverTime--;
-                document.getElementById('hover-fill').style.width = (hoverTime / 120 * 100) + "%";
-                ctx.shadowBlur = 15; ctx.shadowColor = var(--neon-blue);
+                hoverTime -= 16.6; 
+                document.getElementById('hover-fill').style.width = (hoverTime / 2000 * 100) + '%';
+                if (hoverTime <= 0) stopHover();
             } else {
-                isHovering = false;
                 player.velocity += player.gravity;
-                ctx.shadowBlur = 0;
+                player.y += player.velocity;
             }
 
-            player.y += player.velocity;
-            if (player.y + player.height > canvas.height) { checkRevive(); return; }
+            if (player.y + player.height > canvas.height) { gameOver(); return; }
             if (player.y < 0) { player.y = 0; player.velocity = 0; }
             ctx.drawImage(yuzuImg, player.x, player.y, player.width, player.height);
 
-            // 파이프 및 코인 생성
             if (frameCount % 140 === 0) {
                 const py = Math.random() * (canvas.height - 450) + 100;
                 pipes.push({ x: 500, y: py, passed: false });
                 if (Math.random() < 0.4) coins.push({ x: 535, y: py + 130 });
             }
 
-            // 코인 루프
             for (let i = coins.length - 1; i >= 0; i--) {
                 coins[i].x -= gameSpeed;
                 ctx.fillStyle = "gold"; ctx.beginPath(); ctx.arc(coins[i].x, coins[i].y, 12, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke();
                 if (Math.hypot(player.x+(player.width/2)-coins[i].x, player.y+(player.height/2)-coins[i].y) < 35) {
                     sessionCoins++; updateHUD(); playSound(1200, 'sine', 0.05); coins.splice(i, 1);
                 } else if (coins[i].x < -30) coins.splice(i, 1);
             }
 
-            // 파이프 루프
             for (let i = pipes.length - 1; i >= 0; i--) {
                 pipes[i].x -= gameSpeed;
-                
-                // 파이프 드로잉
-                ctx.fillStyle = "#00f2fe";
-                ctx.fillRect(pipes[i].x, 0, 70, pipes[i].y);
-                ctx.fillRect(pipes[i].x, pipes[i].y + 260, 70, canvas.height);
-
-                if (!pipes[i].passed && pipes[i].x + 70 < player.x) {
-                    score++; pipes[i].passed = true; pipesPassed++;
-                    // 나노바나나: 50개마다 라이프 +1
-                    if(data.activeItems.includes('banana') && pipesPassed % 50 === 0 && lives < 4) {
-                        lives++; playSound(1000, 'sine', 0.2);
+                drawPipe(pipes[i].x, pipes[i].y);
+                if (!pipes[i].passed && pipes[i].x + 70 < player.x) { 
+                    score++; 
+                    pipes[i].passed = true; 
+                    
+                    // 나노바나나 로직
+                    if (data.activeItems.includes('banana')) {
+                        bananaCounter++;
+                        if (bananaCounter >= 50) {
+                            if (lives < 4) {
+                                lives++;
+                                playSound(1000, 'sine', 0.2);
+                            }
+                            bananaCounter = 0;
+                        }
                     }
-                    updateHUD();
+                    updateHUD(); 
                 }
-                
                 if (invincible === 0 && player.x+8 < pipes[i].x+70 && player.x+player.width-8 > pipes[i].x && (player.y+8 < pipes[i].y || player.y+player.height-8 > pipes[i].y+260)) takeDamage();
                 if (pipes[i].x < -80) pipes.splice(i, 1);
             }
 
-            // 적 루프
             if (frameCount % 300 === 0 && score >= 40) spawnEnemy();
+            
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].x += bullets[i].vx; bullets[i].y += bullets[i].vy;
+                ctx.drawImage(bulletImg, bullets[i].x, bullets[i].y, 60, 40);
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    if (bullets[i] && bullets[i].x < enemies[j].x + 55 && bullets[i].x + 60 > enemies[j].x && bullets[i].y < enemies[j].y + 55 && bullets[i].y + 40 > enemies[j].y) {
+                        const isLemon = data.activeItems.includes('lemon');
+                        if(isLemon || Math.random() < 0.4) { sessionCoins += 2; updateHUD(); }
+                        enemies.splice(j, 1); bullets.splice(i, 1); playSound(800, 'sine', 0.05); break;
+                    }
+                }
+                if (bullets[i] && (bullets[i].x > 500 || bullets[i].y < 0 || bullets[i].y > 750)) bullets.splice(i, 1);
+            }
+
             for (let i = enemies.length - 1; i >= 0; i--) {
                 enemies[i].x -= (gameSpeed + 1.5);
                 ctx.drawImage(enemyImg, enemies[i].x, enemies[i].y, 55, 55);
@@ -327,20 +389,18 @@
                 } else if (enemies[i].x < -60) enemies.splice(i, 1);
             }
 
-            // 총알 루프
-            for (let i = bullets.length - 1; i >= 0; i--) {
-                bullets[i].x += bullets[i].vx; bullets[i].y += bullets[i].vy;
-                ctx.drawImage(bulletImg, bullets[i].x, bullets[i].y, 60, 40);
-                for (let j = enemies.length - 1; j >= 0; j--) {
-                    if (bullets[i] && bullets[i].x < enemies[j].x + 55 && bullets[i].x + 60 > enemies[j].x && bullets[i].y < enemies[j].y + 55 && bullets[i].y + 40 > enemies[j].y) {
-                        if(data.activeItems.includes('lemon') || Math.random() < 0.4) { sessionCoins += 2; updateHUD(); }
-                        enemies.splice(j, 1); bullets.splice(i, 1); playSound(800, 'sine', 0.05); break;
-                    }
-                }
-                if (bullets[i] && (bullets[i].x > 500 || bullets[i].y < 0 || bullets[i].y > 750)) bullets.splice(i, 1);
-            }
-
             frameCount++; requestAnimationFrame(animate);
+        }
+
+        function startHover() {
+            if (data.activeItems.includes('altman') && hoverTime > 0 && !hoverCooldown) {
+                isHovering = true;
+                playSound(600, 'sine', 0.1);
+            }
+        }
+
+        function stopHover() {
+            isHovering = false;
         }
 
         function fireBullet() {
@@ -348,57 +408,57 @@
             const bx = player.x + 40, by = player.y + 15;
             playSound(400, 'sine', 0.2, true);
             if (data.activeItems.includes('tangerine')) {
-                bullets.push({ x: bx, y: by, vx: 15, vy: -3 }); bullets.push({ x: bx, y: by, vx: 15, vy: 0 }); bullets.push({ x: bx, y: by, vx: 15, vy: 3 });
+                bullets.push({ x: bx, y: by, vx: 15, vy: -3 });
+                bullets.push({ x: bx, y: by, vx: 15, vy: 0 });
+                bullets.push({ x: bx, y: by, vx: 15, vy: 3 });
             } else bullets.push({ x: bx, y: by, vx: 15, vy: 0 });
         }
 
-        function spawnEnemy() {
-            const sy = Math.random() * 500 + 100;
-            if(gameState === 'PLAYING') enemies.push({ x: 500, y: sy }); 
-        }
-
         function takeDamage() { 
-            lives--; invincible = 90; playSound(200, 'square', 0.3); updateHUD(); 
-            if (lives <= 0) checkRevive(); 
-        }
-
-        function checkRevive() {
-            // YUZUDORO: 부활
-            if (revivesLeft > 0) {
-                revivesLeft--; lives = 1; invincible = 120;
-                player.y = 350; player.velocity = 0;
-                alert("YUZUDORO 부활!");
-                updateHUD();
-            } else {
-                gameOver();
-            }
+            lives--; 
+            invincible = 90; 
+            playSound(200, 'square', 0.3); 
+            updateHUD(); 
+            if (lives <= 0) {
+                // YUZUDORO 부활 로직
+                if (canRevive) {
+                    canRevive = false;
+                    lives = 1;
+                    invincible = 150; // 긴 무적 시간
+                    playSound(1500, 'sine', 0.5);
+                    alert("YUZUDORO! 1회 부활했습니다!");
+                    updateHUD();
+                } else {
+                    gameOver(); 
+                }
+            } 
         }
 
         function gameOver() { 
             gameState = 'STOP'; bgm.pause(); 
-            data.coins += sessionCoins; if(score > data.highscore) data.highscore = score; saveData(); 
-            alert(`Game Over! 획득 코인: ${sessionCoins}`); openPage('start-ui'); 
+            data.coins += sessionCoins; 
+            if(score > data.highscore) data.highscore = score; 
+            saveData(); 
+            alert(`Game Over! 획득 코인: ${sessionCoins}`); 
+            openPage('start-ui'); 
         }
 
         window.addEventListener('keydown', (e) => { 
             if (gameState==='PLAYING') { 
-                if (e.code==='Space') { player.velocity=player.jump; e.preventDefault(); }
-                if (e.code==='KeyQ') fireBullet();
-                // 샘 알트만: 호버링 활성화
-                if (e.code==='KeyW' && data.activeItems.includes('altman') && canHover && hoverTime > 0) {
-                    isHovering = true;
-                }
+                if (e.code==='Space') {player.velocity=player.jump; stopHover(); e.preventDefault();} 
+                if (e.code==='KeyQ') fireBullet(); 
+                if (e.code==='KeyW') startHover();
             } 
         });
 
         window.addEventListener('keyup', (e) => {
-            if (e.code === 'KeyW') isHovering = false;
+            if (e.code==='KeyW') stopHover();
         });
 
         window.addEventListener('mousedown', (e) => { 
             if (gameState==='PLAYING') { 
-                if (e.button===0) player.velocity=player.jump; 
-                if (e.button===2) { e.preventDefault(); fireBullet(); } 
+                if (e.button===0) { player.velocity=player.jump; stopHover(); }
+                if (e.button===2) {e.preventDefault(); fireBullet();} 
             } 
         });
         
