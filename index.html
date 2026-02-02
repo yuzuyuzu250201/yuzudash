@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Yuzu Dash - Visual Fix</title>
+    <title>Yuzu Dash - Multi-Item Update</title>
     <link href="https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap" rel="stylesheet">
     <style>
         :root { --primary-color: #ffda44; --accent-color: #ff7eb3; --neon-blue: #00f2fe; }
@@ -15,18 +15,20 @@
         
         .menu-page { padding: 20px; text-align: center; width: 85%; background: rgba(255,255,255,0.1); border-radius: 20px; border: 1px solid var(--neon-blue); }
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }
-        .item-slot { padding: 8px; background: rgba(0,0,0,0.5); border: 2px solid #555; border-radius: 12px; font-size: 14px; cursor: pointer; transition: 0.2s; }
+        
+        /* 2. 아이템 효과 설명 포함 슬롯 */
+        .item-slot { padding: 8px; background: rgba(0,0,0,0.5); border: 2px solid #555; border-radius: 12px; cursor: pointer; transition: 0.2s; }
         .item-slot img { width: 40px; height: 40px; display: block; margin: 0 auto 5px; filter: grayscale(1); opacity: 0.4; }
         .item-slot.owned img { filter: grayscale(0); opacity: 1; }
         .item-slot.active { border-color: var(--primary-color); background: rgba(255, 218, 68, 0.2); box-shadow: 0 0 15px var(--primary-color); }
+        .item-slot .name { font-size: 14px; font-weight: bold; display: block; }
+        .item-slot .desc { font-size: 10px; color: #bbb; display: block; line-height: 1.2; margin-top: 2px; }
 
         .btn { padding: 10px 25px; font-size: 22px; cursor: pointer; background: white; color: #ff7eb3; border: none; border-radius: 50px; font-family: 'Gamja Flower', cursive; box-shadow: 0 4px 0px #e6e6e6; transition: 0.1s; width: 180px; margin: 5px; outline: none; }
         .btn:active { transform: translateY(2px); box-shadow: 0 2px 0px #e6e6e6; }
         
         #hud-top { position: absolute; top: 20px; width: 100%; padding: 0 20px; display: flex; justify-content: space-between; pointer-events: none; z-index: 5; box-sizing: border-box; }
         .hud-item { background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.2); margin-bottom: 5px; font-size: 18px; }
-        
-        /* 괴즈 경고 라벨 복구 */
         #warning-label { position: absolute; right: 20px; font-size: 50px; color: #ff4444; display: none; font-weight: bold; text-shadow: 0 0 15px white; z-index: 8; pointer-events: none; }
     </style>
 </head>
@@ -47,7 +49,7 @@
         <div id="warning-label">!</div>
 
         <div id="start-ui" class="overlay">
-            <h1 style="font-size: 48px; margin: 0; text-shadow: 2px 2px #ff7eb3;">Yuzu Dash v1.12</h1>
+            <h1 style="font-size: 48px; margin: 0; text-shadow: 2px 2px #ff7eb3;">Yuzu Dash v1.13</h1>
             <div id="main-best-score" style="margin-bottom:10px;">최고 기록: 0</div>
             <div style="color: gold; font-size: 24px; margin-bottom: 15px;">Total Coin: <span id="total-coin">0</span></div>
             <button class="btn" onclick="prepareGame()">비행 시작!</button>
@@ -57,7 +59,7 @@
 
         <div id="gacha-ui" class="overlay">
             <div class="menu-page">
-                <h2>🎁 아이템 가챠 (30 Coin)</h2>
+                <h2>🎁 아이템 가챠 (50 Coin)</h2>
                 <div style="font-size: 20px; color: gold; margin-bottom:10px;">보유: <span class="coin-val">0</span></div>
                 <button class="btn" style="width: 200px; background: gold; color: black;" onclick="drawGacha()">뽑기!</button>
                 <div class="grid" id="collection-grid"></div>
@@ -67,7 +69,7 @@
 
         <div id="settings-ui" class="overlay">
             <div class="menu-page">
-                <h2>⚙️ 설정</h2>
+                <h2>⚙️ 사운드 설정</h2>
                 <div style="margin:20px 0;">BGM: <input type="range" id="bgm-vol" min="0" max="1" step="0.1" value="0.5" oninput="updateVolume()"></div>
                 <div style="margin:20px 0;">SFX: <input type="range" id="sfx-vol" min="0" max="1" step="0.1" value="0.5" oninput="updateVolume()"></div>
                 <button class="btn" style="background:#6fbcf0; color:white;" onclick="openPage('start-ui')">저장</button>
@@ -85,35 +87,48 @@
         const bgm = new Audio('FutureJuice.mp3'); bgm.loop = true;
 
         const ITEM_LIST = [
-            { id: 'cutlet', name: '돈까쓰', desc: '라이프 +1', img: 'gacha_don.webp' },
-            { id: 'tangerine', name: '유즈귤', desc: '3방향 샷건', img: 'gacha_gyul.webp' },
-            { id: 'lemon', name: '레몬', desc: '코인 100%', img: 'gacha_lemon.webp' }
+            { id: 'cutlet', name: '돈까쓰', desc: '라이프+1', img: 'gacha_don.webp' },
+            { id: 'tangerine', name: '유즈귤', desc: '3방향발사', img: 'gacha_gyul.webp' },
+            { id: 'lemon', name: '레몬', desc: '코인100%', img: 'gacha_lemon.webp' }
         ];
 
+        // 1, 4. 데이터 로드 (사운드 포함, activeItems 배열로 변경)
         let data = {
             highscore: parseInt(localStorage.getItem('yuzuHighScore')) || 0,
             coins: parseInt(localStorage.getItem('yuzuCoins')) || 0,
             collection: JSON.parse(localStorage.getItem('yuzuCollection')) || [],
-            activeItem: localStorage.getItem('yuzuActiveItem') || null
+            activeItems: JSON.parse(localStorage.getItem('yuzuActiveItems')) || [],
+            bgmVol: parseFloat(localStorage.getItem('yuzuBgmVol')) ?? 0.5,
+            sfxVol: parseFloat(localStorage.getItem('yuzuSfxVol')) ?? 0.5
         };
 
         let gameState = 'STOP', score = 0, lives = 3, gameSpeed = 2.2, currentMach = 1, frameCount = 0;
         let pipes = [], bullets = [], enemies = [], coins = [], invincible = 0, sessionCoins = 0;
-        let sfxVol = 0.5;
+
+        // 초기 사운드 적용
+        bgm.volume = data.bgmVol;
+        document.getElementById('bgm-vol').value = data.bgmVol;
+        document.getElementById('sfx-vol').value = data.sfxVol;
 
         const yuzuImg = new Image(); yuzuImg.src = 'yuzu.webp';
         const enemyImg = new Image(); enemyImg.src = 'enemy_wildyuzu.webp';
         const bulletImg = new Image(); bulletImg.src = 'attack.webp';
         const player = { x: 60, y: 300, width: 45, height: 45, gravity: 0.22, velocity: 0, jump: -6.5 };
 
-        function updateVolume() { bgm.volume = document.getElementById('bgm-vol').value; sfxVol = document.getElementById('sfx-vol').value; }
+        function updateVolume() { 
+            data.bgmVol = parseFloat(document.getElementById('bgm-vol').value);
+            data.sfxVol = parseFloat(document.getElementById('sfx-vol').value);
+            bgm.volume = data.bgmVol;
+            saveData(); // 설정 즉시 저장
+        }
+
         function playSound(f, t, d, s=false) {
             const ac = new (window.AudioContext || window.webkitAudioContext)();
             if (ac.state === 'suspended') ac.resume();
             const o = ac.createOscillator(); const g = ac.createGain();
             o.type = t; o.frequency.setValueAtTime(f, ac.currentTime);
             if (s) o.frequency.exponentialRampToValueAtTime(f * 2.5, ac.currentTime + d);
-            g.gain.setValueAtTime(sfxVol * 0.1, ac.currentTime);
+            g.gain.setValueAtTime(data.sfxVol * 0.1, ac.currentTime);
             o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + d);
         }
 
@@ -131,8 +146,8 @@
         }
 
         function drawGacha() {
-            if (data.coins < 30) { alert("코인이 부족해요!"); return; }
-            data.coins -= 30;
+            if (data.coins < 50) { alert("코인이 부족해요! (50 Coin)"); return; }
+            data.coins -= 50;
             const picked = ITEM_LIST[Math.floor(Math.random() * ITEM_LIST.length)];
             if (data.collection.includes(picked.id)) { data.coins += 10; alert(`중복! [${picked.name}] -> 10 Coin 페이백!`); }
             else { data.collection.push(picked.id); alert(`NEW! [${picked.name}] 획득!`); }
@@ -143,10 +158,22 @@
             const grid = document.getElementById('collection-grid'); grid.innerHTML = '';
             ITEM_LIST.forEach(item => {
                 const isOwned = data.collection.includes(item.id);
+                // 4. 중복 선택(멀티 활성화) 로직
+                const isActive = data.activeItems.includes(item.id);
                 const slot = document.createElement('div');
-                slot.className = `item-slot ${isOwned ? 'owned' : ''} ${data.activeItem === item.id ? 'active' : ''}`;
-                slot.innerHTML = `<img src="${item.img}"><strong>${isOwned ? item.name : '???'}</strong>`;
-                slot.onclick = () => { if(isOwned) { data.activeItem = (data.activeItem === item.id) ? null : item.id; saveData(); renderCollection(); } };
+                slot.className = `item-slot ${isOwned ? 'owned' : ''} ${isActive ? 'active' : ''}`;
+                slot.innerHTML = `
+                    <img src="${item.img}">
+                    <span class="name">${isOwned ? item.name : '???'}</span>
+                    <span class="desc">${isOwned ? item.desc : '미획득'}</span>
+                `;
+                slot.onclick = () => { 
+                    if(isOwned) { 
+                        if(isActive) data.activeItems = data.activeItems.filter(i => i !== item.id);
+                        else data.activeItems.push(item.id);
+                        saveData(); renderCollection(); 
+                    } 
+                };
                 grid.appendChild(slot);
             });
         }
@@ -154,13 +181,14 @@
         function saveData() {
             localStorage.setItem('yuzuCoins', data.coins);
             localStorage.setItem('yuzuCollection', JSON.stringify(data.collection));
-            localStorage.setItem('yuzuActiveItem', data.activeItem || "");
+            localStorage.setItem('yuzuActiveItems', JSON.stringify(data.activeItems));
             localStorage.setItem('yuzuHighScore', data.highscore);
+            localStorage.setItem('yuzuBgmVol', data.bgmVol);
+            localStorage.setItem('yuzuSfxVol', data.sfxVol);
         }
 
         function prepareGame() {
-            openPage('none');
-            resetGame();
+            openPage('none'); resetGame();
             bgm.currentTime = 0;
             let count = 3;
             const cntUI = document.getElementById('count-ui');
@@ -175,7 +203,9 @@
         function resetGame() {
             player.y = 300; player.velocity = 0;
             pipes = []; bullets = []; enemies = []; coins = [];
-            score = 0; lives = (data.activeItem === 'cutlet') ? 4 : 3;
+            score = 0; 
+            // 4. 아이템 효과 중첩 적용
+            lives = data.activeItems.includes('cutlet') ? 4 : 3;
             gameSpeed = 2.2; currentMach = 1; frameCount = 0; sessionCoins = 0;
             updateHUD();
         }
@@ -192,17 +222,10 @@
             }
         }
 
-        // 1. 배경 및 파이프 그래디언트 복구 로직
         function drawVisuals() {
-            // 배경 그래디언트
             let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            bgGrad.addColorStop(0, '#0f0c29');
-            bgGrad.addColorStop(0.5, '#302b63');
-            bgGrad.addColorStop(1, '#24243e');
-            ctx.fillStyle = bgGrad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // 별 효과
+            bgGrad.addColorStop(0, '#0f0c29'); bgGrad.addColorStop(0.5, '#302b63'); bgGrad.addColorStop(1, '#24243e');
+            ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
             for(let i=0; i<15; i++) {
                 let x = (i * 37 + frameCount * 0.5) % canvas.width;
@@ -213,25 +236,16 @@
 
         function drawPipe(x, y) {
             let pipeGrad = ctx.createLinearGradient(x, 0, x + 60, 0);
-            pipeGrad.addColorStop(0, '#4facfe');
-            pipeGrad.addColorStop(0.5, '#00f2fe');
-            pipeGrad.addColorStop(1, '#4facfe');
-
+            pipeGrad.addColorStop(0, '#4facfe'); pipeGrad.addColorStop(0.5, '#00f2fe'); pipeGrad.addColorStop(1, '#4facfe');
             ctx.shadowBlur = 10; ctx.shadowColor = '#00f2fe';
             ctx.fillStyle = pipeGrad;
-            ctx.fillRect(x, 0, 60, y); // 상단 파이프
-            ctx.fillRect(x, y + 220, 60, canvas.height); // 하단 파이프
+            ctx.fillRect(x, 0, 60, y); ctx.fillRect(x, y + 220, 60, canvas.height);
             ctx.shadowBlur = 0;
-            
-            // 파이프 끝단 포인트
-            ctx.fillStyle = "white";
-            ctx.fillRect(x - 2, y - 10, 64, 10);
-            ctx.fillRect(x - 2, y + 220, 64, 10);
+            ctx.fillStyle = "white"; ctx.fillRect(x - 2, y - 10, 64, 10); ctx.fillRect(x - 2, y + 220, 64, 10);
         }
 
         function spawnEnemy() {
             const sy = Math.random() * 400 + 100;
-            // 3. 괴즈 경고 복구
             warningLabel.style.top = sy + "px";
             warningLabel.style.display = "block";
             playSound(300, 'square', 0.1);
@@ -257,7 +271,6 @@
                 coins.push({ x: 425, y: py + 110 });
             }
 
-            // 코인
             for (let i = coins.length - 1; i >= 0; i--) {
                 coins[i].x -= gameSpeed;
                 ctx.fillStyle = "gold"; ctx.beginPath(); ctx.arc(coins[i].x, coins[i].y, 10, 0, Math.PI*2); ctx.fill();
@@ -267,7 +280,6 @@
                 } else if (coins[i].x < -20) coins.splice(i, 1);
             }
 
-            // 파이프
             for (let i = pipes.length - 1; i >= 0; i--) {
                 pipes[i].x -= gameSpeed;
                 drawPipe(pipes[i].x, pipes[i].y);
@@ -276,7 +288,6 @@
                 if (pipes[i].x < -60) pipes.splice(i, 1);
             }
 
-            // 적/공격 로직
             if (frameCount % 300 === 0 && score >= 50) spawnEnemy();
             
             for (let i = bullets.length - 1; i >= 0; i--) {
@@ -284,7 +295,9 @@
                 ctx.drawImage(bulletImg, bullets[i].x, bullets[i].y, 50, 35);
                 for (let j = enemies.length - 1; j >= 0; j--) {
                     if (bullets[i] && bullets[i].x < enemies[j].x + 45 && bullets[i].x + 40 > enemies[j].x && bullets[i].y < enemies[j].y + 45 && bullets[i].y + 30 > enemies[j].y) {
-                        if(Math.random() < (data.activeItem === 'lemon' ? 1.0 : 0.5)) { sessionCoins += 2; updateHUD(); }
+                        // 4. 레몬 효과 상시 체크
+                        const isLemon = data.activeItems.includes('lemon');
+                        if(Math.random() < (isLemon ? 1.0 : 0.5)) { sessionCoins += 2; updateHUD(); }
                         enemies.splice(j, 1); bullets.splice(i, 1); playSound(800, 'sine', 0.05); break;
                     }
                 }
@@ -306,7 +319,8 @@
             if (gameState !== 'PLAYING') return;
             const bx = player.x + 30, by = player.y + 10;
             playSound(400, 'sine', 0.2, true);
-            if (data.activeItem === 'tangerine') {
+            // 4. 유즈귤 효과 상시 체크
+            if (data.activeItems.includes('tangerine')) {
                 bullets.push({ x: bx, y: by, vx: 12, vy: -2.5 });
                 bullets.push({ x: bx, y: by, vx: 12, vy: 0 });
                 bullets.push({ x: bx, y: by, vx: 12, vy: 2.5 });
