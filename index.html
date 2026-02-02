@@ -2,7 +2,8 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Yuzu Dash - Version 2.0</title>
+    <title>Yuzu Dash - Version 2.1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link href="https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap" rel="stylesheet">
     <style>
         :root { --primary-color: #ffda44; --accent-color: #ff7eb3; --neon-blue: #00f2fe; --prestige-gold: #ffaa00; }
@@ -24,20 +25,61 @@
         #game-container { 
             position: relative; 
             width: 500px; 
-            height: 750px; 
+            /* 하단 컨트롤 패널 공간 확보를 위해 높이 자동 조정 */
+            height: auto; 
             box-shadow: 0 0 60px rgba(0,0,0,1); 
             border-radius: 30px; 
             overflow: hidden; 
             background: #000; 
             z-index: 2;
             transition: box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
 
-        canvas { display: block; width: 100%; height: 100%; }
-        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); z-index: 10; backdrop-filter: blur(8px); display: none; }
+        /* 캔버스 높이 고정 */
+        canvas { display: block; width: 100%; height: 750px; background: transparent; }
+
+        /* [패치 2.1] 하단 모바일 컨트롤 패널 */
+        #mobile-controls {
+            width: 100%;
+            height: 90px;
+            background: #1a1a24;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            box-sizing: border-box;
+            border-top: 2px solid #333;
+        }
+
+        .control-btn {
+            flex: 1;
+            height: 100%;
+            border: none;
+            border-radius: 15px;
+            font-family: 'Gamja Flower', cursive;
+            font-size: 22px;
+            color: white;
+            margin: 0 5px;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            line-height: 1.2;
+        }
+        .control-btn:active { transform: scale(0.95); }
+        
+        #btn-hover { background: linear-gradient(180deg, #4facfe 0%, #00f2fe 100%); box-shadow: 0 4px 0 #0099aa; }
+        #btn-attack { background: linear-gradient(180deg, #ff9a9e 0%, #ff4757 100%); box-shadow: 0 4px 0 #c0392b; }
+        .btn-sub { font-size: 14px; opacity: 0.8; }
+
+        /* 오버레이 스타일 유지 */
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 750px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); z-index: 10; backdrop-filter: blur(8px); display: none; }
         #start-ui { display: flex; background: linear-gradient(135deg, rgba(255,218,68,0.8), rgba(255,126,179,0.8)); }
         
-        /* 클리어 화면 전용 UI */
         #clear-ui { background: linear-gradient(135deg, rgba(0,242,254,0.9), rgba(162,155,254,0.9)); }
         .reward-btn { background: #ff4757 !important; color: white !important; font-weight: bold; animation: pulse 1.5s infinite; }
         @keyframes pulse { 
@@ -66,7 +108,7 @@
         #hover-bar { width: 100px; height: 8px; background: #333; border-radius: 4px; margin-top: 5px; overflow: hidden; display: none; }
         #hover-fill { width: 100%; height: 100%; background: var(--neon-blue); transition: width 0.1s linear; }
         #warning-label { position: absolute; right: 30px; font-size: 60px; color: #ff4444; display: none; font-weight: bold; text-shadow: 0 0 15px white; z-index: 8; pointer-events: none; }
-        #revive-flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; pointer-events: none; z-index: 20; }
+        #revive-flash { position: absolute; top: 0; left: 0; width: 100%; height: 750px; background: white; opacity: 0; pointer-events: none; z-index: 20; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -89,7 +131,7 @@
         <div id="warning-label">!</div>
 
         <div id="start-ui" class="overlay">
-            <h1 style="font-size: 56px; margin: 0; text-shadow: 2px 2px #ff7eb3;">Yuzu Dash v2.0</h1>
+            <h1 style="font-size: 56px; margin: 0; text-shadow: 2px 2px #ff7eb3;">Yuzu Dash v2.1</h1>
             <div id="main-best-score" style="margin-bottom:15px; font-size: 20px;">최고 기록: 0</div>
             <div style="color: gold; font-size: 28px; margin-bottom: 10px;">Total Coin: <span id="start-total-coin">0</span></div>
             <button class="btn" onclick="prepareGame()">비행 시작!</button>
@@ -116,14 +158,14 @@
                     <ul>
                         <li><b>플래피 버드 아시죠???</b> 클릭이나 스페이스로 점프하세요!</li>
                         <li><b>50점 이후</b>부터는 위험한 괴즈가 나옵니다.</li>
-                        <li><b>우클릭</b> 혹은 <b>Q 버튼</b>을 눌러 처치하세요!</li>
+                        <li><b>우클릭, Q</b> 혹은 <b>공격 버튼</b>으로 처치하세요!</li>
                         <li><b>클리어 조건</b>은 당당한 1000점 돌파입니다.</li>
                     </ul>
                     <h3>2. 가챠 및 아이템</h3>
                     <ul>
                         <li><b>50 코인</b>으로 1회 가챠를 할 수 있습니다.</li>
                         <li>아이템을 <b>눌러서 활성화</b> 시켜야 적용됩니다.</li>
-                        <li>중복 시 <b>10 코인</b>을 돌려줍니다.</li>
+                        <li><b>호버링</b>은 '샘 알트만' 아이템이 필요합니다. (W키 또는 호버링 버튼)</li>
                     </ul>
                 </div>
                 <button class="btn" style="background:#6fbcf0; color:white;" onclick="openPage('start-ui')">알게써요!</button>
@@ -156,6 +198,15 @@
         
         <div id="count-ui" class="overlay" style="font-size: 120px; font-weight: bold;"></div>
         <canvas id="gameCanvas" width="500" height="750"></canvas>
+        
+        <div id="mobile-controls">
+            <button id="btn-hover" class="control-btn" onmousedown="startHover()" onmouseup="endHover()" onmouseleave="endHover()" ontouchstart="startHover()" ontouchend="endHover()">
+                🕊️ 호버링<span class="btn-sub">(W / 아이템 필요)</span>
+            </button>
+            <button id="btn-attack" class="control-btn" onclick="fireBullet()">
+                ⚔️ 공격<span class="btn-sub">(우클릭 / Q)</span>
+            </button>
+        </div>
     </div>
 
     <script>
@@ -287,6 +338,9 @@
             lives = data.activeItems.includes('cutlet') ? 4 : 3;
             canRevive = data.activeItems.includes('yuzudoro');
             bananaCounter = 0; hoverTime = 2000; isHovering = false;
+            
+            // [패치 2.1 수정] UI 명시적 초기화 (마하 1)
+            document.getElementById('mach-display').innerText = "🚀 마하 1";
             document.getElementById('hover-bar').style.display = data.activeItems.includes('altman') ? 'block' : 'none';
             document.body.style.background = "#0a0a12";
             document.getElementById('game-container').style.boxShadow = "0 0 60px rgba(0,0,0,1)";
@@ -299,6 +353,7 @@
             document.getElementById('current-coin').innerText = sessionCoins;
             document.getElementById('total-hold-coin').innerText = data.coins;
             const newMach = 1 + Math.floor(score / 25);
+            // 마하 수치 업데이트 로직
             if (newMach > currentMach) {
                 currentMach = newMach;
                 if (gameSpeed < MAX_GAME_SPEED) gameSpeed += 0.5;
@@ -341,13 +396,19 @@
             ctx.shadowBlur = 0; ctx.fillStyle = "white"; ctx.fillRect(x - 3, y - 12, 76, 12); ctx.fillRect(x - 3, y + 260, 76, 12);
         }
 
-        // [v2.0 수정] 1000점 클리어 시 클리어 화면 노출
         function gameClear() {
             gameState = 'STOP'; bgm.pause();
             data.coins += sessionCoins + 500;
             if(score > data.highscore) data.highscore = score;
-            saveData(); 
-            openPage('clear-ui'); // 클리어 전용 페이지 오픈
+            saveData(); openPage('clear-ui');
+        }
+
+        // [패치 2.1 수정] 호버링 로직 함수 분리
+        function startHover() {
+            if (data.activeItems.includes('altman') && hoverTime > 0) isHovering = true;
+        }
+        function endHover() {
+            isHovering = false;
         }
 
         function animate() {
@@ -357,11 +418,19 @@
                 invincible--;
                 ctx.globalAlpha = (frameCount % 10 < 5) ? 0.3 : 0.8;
             }
+
+            // [패치 2.1 수정] 호버링 작동 로직 안정화
             if (isHovering && hoverTime > 0) {
-                player.velocity = 0; hoverTime -= 16.6; 
+                player.velocity = 0; 
+                hoverTime -= 16.6; 
                 document.getElementById('hover-fill').style.width = (hoverTime / 2000 * 100) + '%';
                 if (hoverTime <= 0) isHovering = false;
-            } else { player.velocity += player.gravity; player.y += player.velocity; }
+            } else { 
+                player.velocity += player.gravity; 
+                player.y += player.velocity; 
+                isHovering = false; // 호버링 끝나면 상태 강제 해제
+            }
+
             if (player.y + player.height > canvas.height) { gameOver(); return; }
             if (player.y < 0) { player.y = 0; player.velocity = 0; }
             ctx.drawImage(yuzuImg, player.x, player.y, player.width, player.height);
@@ -424,9 +493,7 @@
         }
 
         function takeDamage() { 
-            lives--; 
-            playSound(200, 'square', 0.3); 
-            updateHUD(); 
+            lives--; playSound(200, 'square', 0.3); updateHUD(); 
             if (lives <= 0) {
                 if (canRevive) { 
                     canRevive = false; lives = 1; invincible = 150; 
@@ -435,8 +502,7 @@
                     flash.style.opacity = '0.8';
                     setTimeout(() => { flash.style.opacity = '0'; }, 300);
                     updateHUD(); 
-                } 
-                else gameOver(); 
+                } else gameOver(); 
             } else { invincible = 90; }
         }
 
@@ -448,15 +514,23 @@
             document.getElementById('game-container').style.boxShadow = "0 0 60px rgba(0,0,0,1)";
         }
 
+        // 키보드 이벤트 리스너 업데이트 (호버링 함수 연결)
         window.addEventListener('keydown', (e) => { 
             if (gameState==='PLAYING') { 
                 if (e.code==='Space') { player.velocity=player.jump; isHovering = false; e.preventDefault(); } 
-                if (e.code==='KeyQ') fireBullet(); if (e.code==='KeyW' && data.activeItems.includes('altman') && hoverTime > 0) isHovering = true;
+                if (e.code==='KeyQ') fireBullet(); 
+                if (e.code==='KeyW') startHover(); // 호버링 시작 함수 호출
             } 
         });
-        window.addEventListener('keyup', (e) => { if (e.code==='KeyW') isHovering = false; });
+        window.addEventListener('keyup', (e) => { if (e.code==='KeyW') endHover(); }); // 호버링 종료 함수 호출
+
         window.addEventListener('mousedown', (e) => { 
-            if (gameState==='PLAYING') { if (e.button===0) { player.velocity=player.jump; isHovering = false; } if (e.button===2) {e.preventDefault(); fireBullet();} } 
+            // 모바일 컨트롤 버튼 클릭 시 이벤트 버블링으로 인한 점프 방지
+            if (e.target.closest('#mobile-controls')) return;
+            if (gameState==='PLAYING') { 
+                if (e.button===0) { player.velocity=player.jump; isHovering = false; } 
+                if (e.button===2) { e.preventDefault(); fireBullet(); } 
+            } 
         });
         window.onload = () => { updateDataUI(); };
     </script>
