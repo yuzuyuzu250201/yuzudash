@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Yuzu Dash - Patch 1.15.3</title>
+    <title>Yuzu Dash - Patch 1.15.4</title>
     <link href="https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap" rel="stylesheet">
     <style>
         :root { --primary-color: #ffda44; --accent-color: #ff7eb3; --neon-blue: #00f2fe; --prestige-gold: #ffaa00; }
@@ -12,6 +12,12 @@
         .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); z-index: 10; backdrop-filter: blur(8px); display: none; }
         #start-ui { display: flex; background: linear-gradient(135deg, rgba(255,218,68,0.8), rgba(255,126,179,0.8)); }
         .menu-page { padding: 20px; text-align: center; width: 90%; background: rgba(255,255,255,0.1); border-radius: 20px; border: 1px solid var(--neon-blue); max-height: 85%; overflow-y: auto; }
+        
+        /* 도움말 텍스트 스타일 */
+        .help-content { text-align: left; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 15px; margin: 15px 0; line-height: 1.6; }
+        .help-content h3 { color: var(--primary-color); margin-top: 0; border-bottom: 1px solid var(--primary-color); display: inline-block; }
+        .help-content ul { padding-left: 20px; margin: 10px 0; }
+        
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 15px 0; }
         .item-slot { padding: 8px; background: rgba(0,0,0,0.5); border: 2px solid #555; border-radius: 12px; cursor: pointer; transition: 0.2s; position: relative; }
         .item-slot img { width: 55px; height: 55px; display: block; margin: 0 auto 5px; filter: grayscale(1); opacity: 0.4; transition: 0.3s; }
@@ -19,7 +25,6 @@
         .item-slot.active { border-color: var(--primary-color); background: rgba(255, 218, 68, 0.2); box-shadow: 0 0 15px var(--primary-color); }
         .item-slot .name { font-size: 15px; font-weight: bold; display: block; }
         .item-slot .desc { font-size: 10px; color: #bbb; display: block; line-height: 1.2; margin-top: 2px; }
-        .item-slot.prestige { border-color: var(--prestige-gold); }
         .btn { padding: 12px 30px; font-size: 24px; cursor: pointer; background: white; color: #ff7eb3; border: none; border-radius: 50px; font-family: 'Gamja Flower', cursive; box-shadow: 0 4px 0px #e6e6e6; transition: 0.1s; width: 220px; margin: 8px; outline: none; }
         .btn:active { transform: translateY(2px); box-shadow: 0 2px 0px #e6e6e6; }
         #hud-top { position: absolute; top: 25px; width: 100%; padding: 0 25px; display: flex; justify-content: space-between; pointer-events: none; z-index: 5; box-sizing: border-box; }
@@ -47,12 +52,36 @@
         <div id="warning-label">!</div>
 
         <div id="start-ui" class="overlay">
-            <h1 style="font-size: 56px; margin: 0; text-shadow: 2px 2px #ff7eb3;">Yuzu Dash v1.15.3</h1>
+            <h1 style="font-size: 56px; margin: 0; text-shadow: 2px 2px #ff7eb3;">Yuzu Dash v1.15.4</h1>
             <div id="main-best-score" style="margin-bottom:15px; font-size: 20px;">최고 기록: 0</div>
-            <div style="color: gold; font-size: 28px; margin-bottom: 20px;">Total Coin: <span id="start-total-coin">0</span></div>
+            <div style="color: gold; font-size: 28px; margin-bottom: 10px;">Total Coin: <span id="start-total-coin">0</span></div>
             <button class="btn" onclick="prepareGame()">비행 시작!</button>
             <button class="btn" style="background:#6fbcf0; color:white;" onclick="openPage('gacha-ui')">아이템 & 컬렉션</button>
-            <button class="btn" style="background:#6fbcf0; color:white;" onclick="openPage('settings-ui')">설정</button>
+            <button class="btn" style="background:#a29bfe; color:white;" onclick="openPage('help-ui')">억떡계해여??</button>
+            <button class="btn" style="background:#95a5a6; color:white;" onclick="openPage('settings-ui')">설정</button>
+        </div>
+
+        <div id="help-ui" class="overlay">
+            <div class="menu-page">
+                <h2 style="margin: 10px 0;">❓ 플레이 가이드</h2>
+                <div class="help-content">
+                    <h3>1. 플레이 방법</h3>
+                    <ul>
+                        <li><b>플래피 버드 아시죠???</b> 클릭이나 스페이스로 점프하세요!</li>
+                        <li><b>50점 이후</b>부터는 위험한 괴즈가 나옵니다.</li>
+                        <li><b>우클릭</b> 혹은 <b>Q 버튼</b>을 눌러 처치하세요!</li>
+                        <li><b>클리어 조건</b>은 당당한 1000점 돌파입니다.</li>
+                    </ul>
+                    
+                    <h3>2. 가챠 및 아이템</h3>
+                    <ul>
+                        <li><b>50 코인</b>으로 1회 가챠를 할 수 있습니다.</li>
+                        <li>획득한 아이템을 <b>눌러서 활성화</b> 시켜야 적용됩니다.</li>
+                        <li>이미 있는 아이템이 나오면 <b>10 코인</b>을 돌려줍니다.</li>
+                    </ul>
+                </div>
+                <button class="btn" style="background:#6fbcf0; color:white;" onclick="openPage('start-ui')">알게써요!</button>
+            </div>
         </div>
 
         <div id="gacha-ui" class="overlay">
@@ -83,6 +112,7 @@
     </div>
 
     <script>
+        // 이전 스크립트 로직 유지 및 가시성을 위해 필요한 부분만 포함
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const warningLabel = document.getElementById('warning-label');
@@ -113,7 +143,6 @@
         const MAX_GAME_SPEED = 7.0; 
 
         bgm.volume = data.bgmVol;
-
         const yuzuImg = new Image(); yuzuImg.src = 'yuzu.webp';
         const enemyImg = new Image(); enemyImg.src = 'enemy_wildyuzu.webp';
         const bulletImg = new Image(); bulletImg.src = 'attack.webp';
@@ -152,24 +181,14 @@
             else { btn.innerText = "구매 / 1000 코인"; btn.disabled = false; btn.style.background = "var(--prestige-gold)"; }
         }
 
-        // [버그 픽스] 가챠 확률 균등화 및 작동 보장
         function drawGacha() {
             if (data.coins < 50) { alert("코인이 부족해요!"); return; }
             data.coins -= 50;
-            // Math.random()을 사용하여 ITEM_LIST의 모든 요소가 동일한 확률(1/6)을 가짐
             const randomIndex = Math.floor(Math.random() * ITEM_LIST.length);
             const picked = ITEM_LIST[randomIndex];
-            
-            if (data.collection.includes(picked.id)) {
-                data.coins += 10;
-                alert(`중복! [${picked.name}] -> 10 Coin 페이백!`);
-            } else {
-                data.collection.push(picked.id);
-                alert(`NEW! [${picked.name}] 획득!`);
-            }
-            saveData();
-            renderCollection();
-            updateDataUI();
+            if (data.collection.includes(picked.id)) { data.coins += 10; alert(`중복! [${picked.name}] -> 10 Coin 페이백!`); } 
+            else { data.collection.push(picked.id); alert(`NEW! [${picked.name}] 획득!`); }
+            saveData(); renderCollection(); updateDataUI();
         }
 
         function buyPrestige() {
@@ -210,14 +229,7 @@
             const cntUI = document.getElementById('count-ui');
             const timer = setInterval(() => {
                 if (count >= 0) { cntUI.innerText = count === 0 ? "GO!" : count; cntUI.style.display = 'flex'; playSound(523, 'sine', 0.1); count--; }
-                else { 
-                    clearInterval(timer); cntUI.style.display = 'none'; 
-                    gameState = 'PLAYING'; 
-                    // [버그 픽스] BGM을 처음부터 재생
-                    bgm.currentTime = 0;
-                    bgm.play(); 
-                    animate(); 
-                }
+                else { clearInterval(timer); cntUI.style.display = 'none'; gameState = 'PLAYING'; bgm.currentTime = 0; bgm.play(); animate(); }
             }, 800);
         }
 
@@ -238,7 +250,6 @@
             document.getElementById('life-display').innerText = "❤️".repeat(Math.max(0, lives));
             document.getElementById('current-coin').innerText = sessionCoins;
             document.getElementById('total-hold-coin').innerText = data.coins;
-            
             const newMach = 1 + Math.floor(score / 25);
             if (newMach > currentMach) {
                 currentMach = newMach;
@@ -246,31 +257,22 @@
                 document.getElementById('mach-display').innerText = `🚀 마하 ${currentMach}`;
                 playSound(880, 'triangle', 0.2);
             }
-            // [밸런스] 1000점 클리어 체크
-            if (score >= 1000) { gameClear(); }
+            if (score >= 1000) gameClear();
         }
 
         function drawVisuals() {
             let colorA = '#0f0c29', colorB = '#302b63', colorC = '#24243e';
-
-            // [밸런스] 무지개 연출 목표치 1000으로 하향 조정
             if (score >= 1000) {
                 const hue = (frameCount % 360);
-                colorA = `hsl(${hue}, 50%, 15%)`;
-                colorB = `hsl(${(hue + 60) % 360}, 50%, 25%)`;
-                colorC = `hsl(${(hue + 120) % 360}, 50%, 15%)`;
-            } else if (score >= 100) { // 100점 단위로 배경색이 눈에 띄게 변함
+                colorA = `hsl(${hue}, 50%, 15%)`; colorB = `hsl(${(hue + 60) % 360}, 50%, 25%)`; colorC = `hsl(${(hue + 120) % 360}, 50%, 15%)`;
+            } else if (score >= 100) {
                 const stage = Math.floor(score / 100);
                 const shift = stage * 30;
-                colorA = `hsl(${240 + shift}, 50%, 10%)`;
-                colorB = `hsl(${260 + shift}, 40%, 20%)`;
-                colorC = `hsl(${280 + shift}, 50%, 10%)`;
+                colorA = `hsl(${240 + shift}, 50%, 10%)`; colorB = `hsl(${260 + shift}, 40%, 20%)`; colorC = `hsl(${280 + shift}, 50%, 10%)`;
             }
-
             let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
             bgGrad.addColorStop(0, colorA); bgGrad.addColorStop(0.5, colorB); bgGrad.addColorStop(1, colorC);
             ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
             ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
             for(let i=0; i<20; i++) {
                 let x = (i * 47 + frameCount * 0.5) % canvas.width;
@@ -289,10 +291,9 @@
 
         function gameClear() {
             gameState = 'STOP'; bgm.pause();
-            data.coins += sessionCoins + 500; // 클리어 보너스
+            data.coins += sessionCoins + 500;
             if(score > data.highscore) data.highscore = score;
-            saveData();
-            alert("✨ CONGRATULATIONS! ✨\n1000점 도달! 유즈 대시 클리어!\n보너스 코인 500개를 획득했습니다!");
+            saveData(); alert("✨ CONGRATULATIONS! ✨\n1000점 도달! 유즈 대시 클리어!\n보너스 코인 500개를 획득했습니다!");
             openPage('start-ui');
         }
 
@@ -300,23 +301,19 @@
             if (gameState !== 'PLAYING') return;
             drawVisuals();
             if (invincible > 0) invincible--;
-
             if (isHovering && hoverTime > 0) {
                 player.velocity = 0; hoverTime -= 16.6; 
                 document.getElementById('hover-fill').style.width = (hoverTime / 2000 * 100) + '%';
                 if (hoverTime <= 0) isHovering = false;
             } else { player.velocity += player.gravity; player.y += player.velocity; }
-
             if (player.y + player.height > canvas.height) { gameOver(); return; }
             if (player.y < 0) { player.y = 0; player.velocity = 0; }
             ctx.drawImage(yuzuImg, player.x, player.y, player.width, player.height);
-
             if (frameCount % 140 === 0) {
                 const py = Math.random() * (canvas.height - 450) + 100;
                 pipes.push({ x: 500, y: py, passed: false });
                 if (Math.random() < 0.4) coins.push({ x: 535, y: py + 130 });
             }
-
             for (let i = coins.length - 1; i >= 0; i--) {
                 coins[i].x -= gameSpeed;
                 ctx.fillStyle = "gold"; ctx.beginPath(); ctx.arc(coins[i].x, coins[i].y, 12, 0, Math.PI*2); ctx.fill();
@@ -324,7 +321,6 @@
                     sessionCoins++; updateHUD(); playSound(1200, 'sine', 0.05); coins.splice(i, 1);
                 } else if (coins[i].x < -30) coins.splice(i, 1);
             }
-
             for (let i = pipes.length - 1; i >= 0; i--) {
                 pipes[i].x -= gameSpeed; drawPipe(pipes[i].x, pipes[i].y);
                 if (!pipes[i].passed && pipes[i].x + 70 < player.x) { 
@@ -338,13 +334,11 @@
                 if (invincible === 0 && player.x+8 < pipes[i].x+70 && player.x+player.width-8 > pipes[i].x && (player.y+8 < pipes[i].y || player.y+player.height-8 > pipes[i].y+260)) takeDamage();
                 if (pipes[i].x < -80) pipes.splice(i, 1);
             }
-
             if (frameCount % 300 === 0 && score >= 40) {
                 const sy = Math.random() * 500 + 100;
                 warningLabel.style.top = sy + "px"; warningLabel.style.display = "block";
                 setTimeout(() => { warningLabel.style.display = "none"; if(gameState==='PLAYING') enemies.push({ x: 500, y: sy }); }, 800);
             }
-            
             for (let i = bullets.length - 1; i >= 0; i--) {
                 bullets[i].x += bullets[i].vx; bullets[i].y += bullets[i].vy;
                 ctx.drawImage(bulletImg, bullets[i].x, bullets[i].y, 60, 40);
@@ -356,14 +350,12 @@
                 }
                 if (bullets[i] && (bullets[i].x > 500 || bullets[i].y < 0 || bullets[i].y > 750)) bullets.splice(i, 1);
             }
-
             for (let i = enemies.length - 1; i >= 0; i--) {
                 enemies[i].x -= (gameSpeed + 1.5); ctx.drawImage(enemyImg, enemies[i].x, enemies[i].y, 55, 55);
                 if (invincible === 0 && player.x < enemies[i].x+45 && player.x+45 > enemies[i].x && player.y < enemies[i].y+45 && player.y+45 > enemies[i].y) {
                     takeDamage(); enemies.splice(i, 1);
                 } else if (enemies[i].x < -60) enemies.splice(i, 1);
             }
-
             frameCount++; requestAnimationFrame(animate);
         }
 
@@ -382,11 +374,7 @@
             } 
         }
 
-        function gameOver() { 
-            gameState = 'STOP'; bgm.pause(); bgm.currentTime = 0; // 게임 오버 시에도 리셋
-            data.coins += sessionCoins; if(score > data.highscore) data.highscore = score; 
-            saveData(); openPage('start-ui'); 
-        }
+        function gameOver() { gameState = 'STOP'; bgm.pause(); bgm.currentTime = 0; data.coins += sessionCoins; if(score > data.highscore) data.highscore = score; saveData(); openPage('start-ui'); }
 
         window.addEventListener('keydown', (e) => { 
             if (gameState==='PLAYING') { 
