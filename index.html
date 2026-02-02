@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Yuzu Dash - Patch 1.1</title>
+    <title>Yuzu Dash - Patch 1.11</title>
     <link href="https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap" rel="stylesheet">
     <style>
         :root { --primary-color: #ffda44; --accent-color: #ff7eb3; --neon-blue: #00f2fe; }
@@ -14,17 +14,21 @@
         #start-ui { display: flex; background: linear-gradient(135deg, rgba(255,218,68,0.8), rgba(255,126,179,0.8)); }
         
         .menu-page { padding: 20px; text-align: center; width: 85%; background: rgba(255,255,255,0.1); border-radius: 20px; border: 1px solid var(--neon-blue); }
-        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 15px 0; }
-        .item-slot { padding: 10px; background: rgba(0,0,0,0.5); border: 2px solid #555; border-radius: 10px; font-size: 16px; cursor: pointer; transition: 0.2s; }
-        .item-slot.owned { border-color: #aaa; color: #fff; }
-        .item-slot.active { border-color: var(--primary-color); background: rgba(255, 218, 68, 0.2); box-shadow: 0 0 15px var(--primary-color); }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }
         
+        /* 아이템 슬롯 디자인 수정 */
+        .item-slot { padding: 8px; background: rgba(0,0,0,0.5); border: 2px solid #555; border-radius: 12px; font-size: 14px; cursor: pointer; transition: 0.2s; position: relative; }
+        .item-slot img { width: 40px; height: 40px; display: block; margin: 0 auto 5px; filter: grayscale(1); opacity: 0.4; }
+        .item-slot.owned img { filter: grayscale(0); opacity: 1; }
+        .item-slot.active { border-color: var(--primary-color); background: rgba(255, 218, 68, 0.2); box-shadow: 0 0 15px var(--primary-color); }
+        .item-slot strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
         .btn { padding: 10px 25px; font-size: 22px; cursor: pointer; background: white; color: #ff7eb3; border: none; border-radius: 50px; font-family: 'Gamja Flower', cursive; box-shadow: 0 4px 0px #e6e6e6; transition: 0.1s; width: 180px; margin: 5px; outline: none; }
         .btn:active { transform: translateY(2px); box-shadow: 0 2px 0px #e6e6e6; }
         .btn-sub { background: #6fbcf0; color: white; box-shadow: 0 4px 0px #4a90c0; }
         
         #hud-top { position: absolute; top: 20px; width: 100%; padding: 0 20px; display: flex; justify-content: space-between; pointer-events: none; z-index: 5; box-sizing: border-box; }
-        .hud-item { background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.2); margin-bottom: 5px; }
+        .hud-item { background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.2); margin-bottom: 5px; font-size: 18px; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -42,10 +46,9 @@
         </div>
 
         <div id="start-ui" class="overlay">
-            <h1 style="font-size: 50px; margin: 0; text-shadow: 2px 2px #ff7eb3;">Yuzu Dash v1.1</h1>
+            <h1 style="font-size: 48px; margin: 0; text-shadow: 2px 2px #ff7eb3;">Yuzu Dash v1.11</h1>
             <div id="main-best-score" style="margin-bottom:10px;">최고 기록: 0</div>
             <div style="color: gold; font-size: 24px; margin-bottom: 15px;">보유 코인: <span id="total-coin">0</span></div>
-            
             <button class="btn" onclick="prepareGame()">비행 시작!</button>
             <button class="btn btn-sub" onclick="openPage('gacha-ui')">가챠 & 컬렉션</button>
             <button class="btn btn-sub" onclick="openPage('settings-ui')">설정</button>
@@ -79,15 +82,15 @@
         const ctx = canvas.getContext('2d');
         const bgm = new Audio('FutureJuice.mp3'); bgm.loop = true;
 
-        // 아이템 정보
+        // 아이템 정보 및 스프라이트 설정
         const ITEM_LIST = [
-            { id: 'cutlet', name: '돈까쓰', desc: '라이프 +1', effect: 'life' },
-            { id: 'tangerine', name: '유즈귤', desc: '3방향 샷건', effect: 'shotgun' },
-            { id: 'lemon', name: '레몬', desc: '코인 100% 드랍', effect: 'luck' }
+            { id: 'cutlet', name: '돈까쓰', desc: '라이프 +1', img: 'gacha_don.webp' },
+            { id: 'tangerine', name: '유즈귤', desc: '3방향 샷건', img: 'gacha_gyul.webp' },
+            { id: 'lemon', name: '레몬', desc: '코인 100%', img: 'gacha_lemon.webp' }
         ];
 
         let data = {
-            highscore: localStorage.getItem('yuzuHighScore') || 0,
+            highscore: parseInt(localStorage.getItem('yuzuHighScore')) || 0,
             coins: parseInt(localStorage.getItem('yuzuCoins')) || 0,
             collection: JSON.parse(localStorage.getItem('yuzuCollection')) || [],
             activeItem: localStorage.getItem('yuzuActiveItem') || null
@@ -102,10 +105,14 @@
         const bulletImg = new Image(); bulletImg.src = 'attack.webp';
         const player = { x: 60, y: 300, width: 45, height: 45, gravity: 0.22, velocity: 0, jump: -6.5 };
 
-        function updateVolume() { bgm.volume = document.getElementById('bgm-vol').value; sfxVol = document.getElementById('sfx-vol').value; }
+        function updateVolume() { 
+            bgm.volume = document.getElementById('bgm-vol').value; 
+            sfxVol = document.getElementById('sfx-vol').value; 
+        }
         
         function playSound(freq, type, duration, sweep = false) {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
             osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
             if (sweep) osc.frequency.exponentialRampToValueAtTime(freq * 2.5, audioCtx.currentTime + duration);
@@ -127,20 +134,19 @@
             document.getElementById('main-best-score').innerText = `최고 기록: ${data.highscore}`;
         }
 
-        // 가챠 로직 (패치 1.1: 30코인, 중복 페이백 10코인)
         function drawGacha() {
-            if (data.coins < 30) { alert("코인이 부족해요! (30🪙 필요)"); return; }
+            if (data.coins < 30) { alert("코인이 부족해요! (30🪙)"); return; }
             data.coins -= 30;
             const picked = ITEM_LIST[Math.floor(Math.random() * ITEM_LIST.length)];
-            
+            let msg = "";
             if (data.collection.includes(picked.id)) {
                 data.coins += 10;
-                alert(`중복 등장! [${picked.name}] 대신 10🪙 페이백!`);
+                msg = `중복 등장! [${picked.name}] 대신 10🪙 페이백!`;
             } else {
                 data.collection.push(picked.id);
-                alert(`축하합니다! 새 아이템 [${picked.name}] 획득!`);
+                msg = `축하합니다! 새 아이템 [${picked.name}] 획득!`;
             }
-            saveData(); updateDataUI(); renderCollection();
+            saveData(); updateDataUI(); renderCollection(); alert(msg);
         }
 
         function renderCollection() {
@@ -149,7 +155,10 @@
                 const isOwned = data.collection.includes(item.id);
                 const slot = document.createElement('div');
                 slot.className = `item-slot ${isOwned ? 'owned' : ''} ${data.activeItem === item.id ? 'active' : ''}`;
-                slot.innerHTML = `<strong>${isOwned ? item.name : '???'}</strong><br><small>${isOwned ? item.desc : '미획득'}</small>`;
+                slot.innerHTML = `
+                    <img src="${item.img}" alt="${item.id}">
+                    <strong>${isOwned ? item.name : '???'}</strong>
+                `;
                 slot.onclick = () => { if(isOwned) { data.activeItem = (data.activeItem === item.id) ? null : item.id; saveData(); renderCollection(); } };
                 grid.appendChild(slot);
             });
@@ -159,25 +168,28 @@
             localStorage.setItem('yuzuCoins', data.coins);
             localStorage.setItem('yuzuCollection', JSON.stringify(data.collection));
             localStorage.setItem('yuzuActiveItem', data.activeItem || "");
+            localStorage.setItem('yuzuHighScore', data.highscore);
         }
 
         function prepareGame() {
             openPage('none');
-            const countUI = document.getElementById('count-ui'); countUI.style.display = 'flex';
+            const cntUI = document.getElementById('count-ui');
+            cntUI.style.display = 'flex';
             resetGame();
             bgm.currentTime = 0;
-            let count = 3; countUI.innerText = count;
+            let count = 3; cntUI.innerText = count;
             const timer = setInterval(() => {
                 count--;
-                if (count >= 0) { countUI.innerText = count === 0 ? "GO!" : count; playSound(523, 'sine', 0.1); }
-                else { clearInterval(timer); countUI.style.display = 'none'; gameState = 'PLAYING'; bgm.play(); animate(); }
+                if (count >= 0) { cntUI.innerText = count === 0 ? "GO!" : count; playSound(523, 'sine', 0.1); }
+                else { clearInterval(timer); cntUI.style.display = 'none'; gameState = 'PLAYING'; bgm.play().catch(()=>{}); animate(); }
             }, 800);
         }
 
         function resetGame() {
             player.y = 300; player.velocity = 0;
             pipes = []; bullets = []; enemies = []; coins = [];
-            score = 0; lives = (data.activeItem === 'cutlet') ? 4 : 3; // 패치 1.1: 돈까쓰 효과
+            score = 0; 
+            lives = (data.activeItem === 'cutlet') ? 4 : 3; 
             gameSpeed = 2.2; currentMach = 1; frameCount = 0; sessionCoins = 0;
             updateHUD();
         }
@@ -186,8 +198,6 @@
             document.getElementById('score-display').innerText = `⭐ ${score}`;
             document.getElementById('life-display').innerText = "❤️".repeat(Math.max(0, lives));
             document.getElementById('current-coin').innerText = sessionCoins;
-            
-            // 패치 1.1: 속도 0.5씩 점진적 상승
             const newMach = 1 + Math.floor(score / 25);
             if (newMach > currentMach) {
                 currentMach = newMach;
@@ -201,11 +211,10 @@
             if (gameState !== 'PLAYING') return;
             const bx = player.x + 30, by = player.y + 10;
             playSound(400, 'sine', 0.2, true);
-            
-            if (data.activeItem === 'tangerine') { // 패치 1.1: 유즈귤 (샷건)
-                bullets.push({ x: bx, y: by, vx: 12, vy: -2 });
+            if (data.activeItem === 'tangerine') {
+                bullets.push({ x: bx, y: by, vx: 12, vy: -2.5 });
                 bullets.push({ x: bx, y: by, vx: 12, vy: 0 });
-                bullets.push({ x: bx, y: by, vx: 12, vy: 2 });
+                bullets.push({ x: bx, y: by, vx: 12, vy: 2.5 });
             } else {
                 bullets.push({ x: bx, y: by, vx: 12, vy: 0 });
             }
@@ -217,7 +226,9 @@
             if (invincible > 0) invincible--;
 
             player.velocity += player.gravity; player.y += player.velocity;
-            if (player.y + player.height > canvas.height || player.y < 0) { if(player.y<0) player.y=0; else {gameOver(); return;}}
+            if (player.y + player.height > canvas.height) { gameOver(); return; }
+            if (player.y < 0) { player.y = 0; player.velocity = 0; }
+            
             ctx.drawImage(yuzuImg, player.x, player.y, player.width, player.height);
 
             if (frameCount % 140 === 0) {
@@ -226,7 +237,6 @@
                 coins.push({ x: 415, y: py + 110 });
             }
 
-            // 코인
             for (let i = coins.length - 1; i >= 0; i--) {
                 coins[i].x -= gameSpeed;
                 ctx.fillStyle = "gold"; ctx.beginPath(); ctx.arc(coins[i].x, coins[i].y, 10, 0, Math.PI*2); ctx.fill();
@@ -235,7 +245,6 @@
                 } else if (coins[i].x < -20) coins.splice(i, 1);
             }
 
-            // 파이프
             for (let i = pipes.length - 1; i >= 0; i--) {
                 pipes[i].x -= gameSpeed;
                 ctx.fillStyle = "#4facfe"; ctx.fillRect(pipes[i].x, 0, 60, pipes[i].y); ctx.fillRect(pipes[i].x, pipes[i].y+220, 60, 600);
@@ -244,25 +253,20 @@
                 if (pipes[i].x < -60) pipes.splice(i, 1);
             }
 
-            // 공격 & 적
             for (let i = bullets.length - 1; i >= 0; i--) {
                 bullets[i].x += bullets[i].vx; bullets[i].y += bullets[i].vy;
                 ctx.drawImage(bulletImg, bullets[i].x, bullets[i].y, 40, 30);
                 for (let j = enemies.length - 1; j >= 0; j--) {
                     if (bullets[i] && bullets[i].x < enemies[j].x + 45 && bullets[i].x + 40 > enemies[j].x && bullets[i].y < enemies[j].y + 45 && bullets[i].y + 30 > enemies[j].y) {
-                        // 패치 1.1: 레몬 효과 (100% 드랍) vs 일반 50%
-                        const dropChance = (data.activeItem === 'lemon') ? 1.0 : 0.5;
-                        if(Math.random() < dropChance) { sessionCoins += 2; updateHUD(); }
+                        const chance = (data.activeItem === 'lemon') ? 1.0 : 0.5;
+                        if(Math.random() < chance) { sessionCoins += 2; updateHUD(); }
                         enemies.splice(j, 1); bullets.splice(i, 1); playSound(800, 'sine', 0.05); break;
                     }
                 }
                 if (bullets[i] && (bullets[i].x > 400 || bullets[i].y < 0 || bullets[i].y > 600)) bullets.splice(i, 1);
             }
 
-            if (frameCount % 280 === 0 && score >= 50) {
-                const sy = Math.random() * 450 + 75;
-                enemies.push({ x: 400, y: sy });
-            }
+            if (frameCount % 280 === 0 && score >= 50) enemies.push({ x: 400, y: Math.random() * 450 + 75 });
             for (let i = enemies.length - 1; i >= 0; i--) {
                 enemies[i].x -= (gameSpeed + 1.2);
                 ctx.drawImage(enemyImg, enemies[i].x, enemies[i].y, 45, 45);
@@ -275,7 +279,11 @@
         }
 
         function takeDamage() { lives--; invincible = 90; playSound(200, 'square', 0.3); updateHUD(); if (lives <= 0) gameOver(); }
-        function gameOver() { gameState = 'STOP'; bgm.pause(); data.coins += sessionCoins; if(score > data.highscore) data.highscore = score; saveData(); alert(`Game Over! 획득 코인: ${sessionCoins}`); openPage('start-ui'); }
+        function gameOver() { 
+            gameState = 'STOP'; bgm.pause(); 
+            data.coins += sessionCoins; if(score > data.highscore) data.highscore = score; 
+            saveData(); alert(`Game Over!\n획득 코인: ${sessionCoins}`); openPage('start-ui'); 
+        }
 
         window.addEventListener('keydown', (e) => {
             if (gameState === 'PLAYING') {
