@@ -3,26 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <title>Yuzu Dash</title>
+    <link href="https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #222; font-family: 'Malgun Gothic', sans-serif; overflow: hidden; }
-        #game-container { position: relative; width: 400px; height: 600px; }
-        canvas { background: #87CEEB; border: 4px solid #fff; display: block; }
+        :root {
+            --primary-color: #ffda44;
+            --accent-color: #ff7eb3;
+            --bg-color: #a2d2ff;
+        }
+
+        body { 
+            margin: 0; display: flex; justify-content: center; align-items: center; 
+            height: 100vh; background: #2b2d42; 
+            font-family: 'Gamja Flower', cursive; overflow: hidden; 
+        }
+
+        #game-container { 
+            position: relative; width: 400px; height: 600px; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border-radius: 30px; overflow: hidden;
+        }
+
+        canvas { background: var(--bg-color); display: block; }
         
-        /* UI 레이어 */
+        /* 공통 UI 스타일 (라운드 & 부드러움) */
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: rgba(0,0,0,0.5); color: white; z-index: 10;
+            background: rgba(0,0,0,0.4); color: white; z-index: 10;
+            backdrop-filter: blur(4px); /* 배경 흐리게 */
         }
-        #start-ui { background: rgba(0,0,0,0.7); }
-        #count-ui { font-size: 80px; font-weight: bold; display: none; background: transparent; }
+
+        #start-ui { 
+            background: linear-gradient(135deg, rgba(255,218,68,0.9), rgba(255,126,179,0.9)); 
+        }
+
+        h1 { font-size: 60px; margin-bottom: 20px; text-shadow: 3px 3px 0px #ff7eb3; }
         
-        .btn { padding: 15px 30px; font-size: 20px; cursor: pointer; background: #ffcc00; border: none; border-radius: 10px; font-weight: bold; }
+        #count-ui { font-size: 100px; font-weight: bold; display: none; background: transparent; }
         
-        /* 속도 및 점수 표기 */
+        .btn { 
+            padding: 15px 40px; font-size: 28px; cursor: pointer; 
+            background: white; color: #ff7eb3; border: none; 
+            border-radius: 50px; font-family: 'Gamja Flower', cursive;
+            box-shadow: 0 8px 0px #e6e6e6; transition: 0.1s;
+        }
+
+        .btn:active { transform: translateY(4px); box-shadow: 0 4px 0px #e6e6e6; }
+        
+        /* HUD 스타일 */
         #hud {
-            position: absolute; top: 10px; right: 10px; text-align: right;
-            color: white; font-weight: bold; text-shadow: 2px 2px 2px #000; pointer-events: none;
+            position: absolute; top: 20px; width: 100%; px: 20px;
+            display: flex; flex-direction: column; align-items: center;
+            color: white; font-size: 22px; pointer-events: none; z-index: 5;
+        }
+        
+        .hud-item {
+            background: rgba(0,0,0,0.3); padding: 5px 20px; 
+            border-radius: 20px; margin-bottom: 5px; border: 2px solid rgba(255,255,255,0.2);
         }
     </style>
 </head>
@@ -30,13 +67,13 @@
 
     <div id="game-container">
         <div id="hud">
-            <div id="mach-display">현재 유즈의 빠르기 : 마하 1.00</div>
-            <div id="score-display">점수 : 0</div>
+            <div class="hud-item" id="mach-display">🚀 마하 1.00</div>
+            <div class="hud-item" id="score-display">점수 : 0</div>
         </div>
 
         <div id="start-ui" class="overlay">
             <h1>Yuzu Dash</h1>
-            <button class="btn" onclick="prepareGame()">게임 시작</button>
+            <button class="btn" onclick="prepareGame()">시작하기!</button>
         </div>
 
         <div id="count-ui" class="overlay"></div>
@@ -52,41 +89,42 @@
         const machDisplay = document.getElementById('mach-display');
         const scoreDisplay = document.getElementById('score-display');
 
-        // 게임 설정
         let gameState = 'STOP';
         let score = 0;
-        let gameSpeed = 2.5; // 초기 속도 하향 조정
+        let gameSpeed = 2.0; 
         let mach = 1.0;
         
         const yuzuImg = new Image();
         yuzuImg.src = 'yuzu.webp';
 
+        // --- 물리 수치 조정 (체공 시간 증가) ---
         const player = {
-            x: 50, y: 300, width: 40, height: 40,
-            gravity: 0.45, // 낙하 속도 살짝 감소
+            x: 60, y: 300, width: 45, height: 45,
+            gravity: 0.28,    // 훨씬 천천히 떨어지게 조정 (기존 0.45)
             velocity: 0,
-            jump: -8 // 점프 힘도 중력에 맞춰 살짝 조정
+            jump: -7,        // 점프 힘 조정
+            maxVelocity: 8    // 낙하 속도 제한 (너무 빨라지지 않게)
         };
 
         const pipes = [];
-        const pipeWidth = 50;
-        const pipeGap = 170; // 통과하기 쉽게 간격 약간 넓힘
+        const pipeWidth = 60;
+        const pipeGap = 200; // 통과 공간을 더 넉넉하게
 
-        // --- 사운드 함수 (Web Audio API 사용 - 별도 파일 필요 없음) ---
         function playSound(freq, type, duration) {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            oscillator.type = type; // 'square', 'sine', 'triangle'
-            oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + duration);
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.type = type;
+                oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + duration);
+            } catch(e) { console.log("Sound error"); }
         }
 
-        // --- 게임 준비 (카운트다운) ---
         function prepareGame() {
             startUI.style.display = 'none';
             countUI.style.display = 'flex';
@@ -94,96 +132,86 @@
             
             let count = 3;
             countUI.innerText = count;
-            playSound(440, 'sine', 0.2); // 삑 소리
+            playSound(523.25, 'sine', 0.2); // 도
 
             const timer = setInterval(() => {
                 count--;
                 if (count > 0) {
                     countUI.innerText = count;
-                    playSound(440, 'sine', 0.2);
+                    playSound(523.25, 'sine', 0.2);
                 } else if (count === 0) {
-                    countUI.innerText = "START!";
-                    playSound(880, 'sine', 0.4); // 높은 삑 소리
+                    countUI.innerText = "GO!";
+                    playSound(1046.50, 'sine', 0.4); // 높은 도
                 } else {
                     clearInterval(timer);
                     countUI.style.display = 'none';
                     gameState = 'PLAYING';
                     animate();
                 }
-            }, 1000);
+            }, 800);
         }
 
         function resetGame() {
-            player.y = 300;
-            player.velocity = 0;
-            pipes.length = 0;
-            score = 0;
-            gameSpeed = 2.5;
-            mach = 1.0;
-            updateHUD();
+            player.y = 300; player.velocity = 0;
+            pipes.length = 0; score = 0; gameSpeed = 2.2; mach = 1.0;
+            frameCount = 0; updateHUD();
         }
 
         function updateHUD() {
-            scoreDisplay.innerText = `점수 : ${score}`;
-            machDisplay.innerText = `현재 유즈의 빠르기 : 마하 ${mach.toFixed(2)}`;
+            scoreDisplay.innerText = `⭐ 점수 : ${score}`;
+            machDisplay.innerText = `🚀 마하 ${mach.toFixed(2)}`;
         }
 
         let frameCount = 0;
         function animate() {
             if (gameState !== 'PLAYING') return;
-            
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 1. 물리 계산
+            // 물리 (낙하 속도 제한 추가)
             player.velocity += player.gravity;
+            if (player.velocity > player.maxVelocity) player.velocity = player.maxVelocity;
             player.y += player.velocity;
 
-            // 2. 플레이어 및 점선 구 그리기
+            // 유즈 & 점선 (귀엽게)
             ctx.save();
-            ctx.setLineDash([5, 5]);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.setLineDash([8, 4]);
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.arc(player.x + player.width/2, player.y + player.height/2, 32, 0, Math.PI * 2);
+            ctx.arc(player.x + player.width/2, player.y + player.height/2, 35, 0, Math.PI * 2);
             ctx.stroke();
             ctx.drawImage(yuzuImg, player.x, player.y, player.width, player.height);
             ctx.restore();
 
-            // 3. 장애물 로직
-            if (frameCount % 120 === 0) {
-                let pipeY = Math.random() * (canvas.height - pipeGap - 100) + 50;
+            // 장애물 (둥근 기둥)
+            if (frameCount % 140 === 0) {
+                let pipeY = Math.random() * (canvas.height - pipeGap - 150) + 75;
                 pipes.push({ x: canvas.width, y: pipeY, passed: false });
             }
 
             for (let i = pipes.length - 1; i >= 0; i--) {
                 pipes[i].x -= gameSpeed;
-
-                ctx.fillStyle = '#2e7d32';
+                
+                ctx.fillStyle = '#77b255';
+                // 기둥 끝을 둥글게 처리 (선택 사항이지만 간단히 사각형 유지)
                 ctx.fillRect(pipes[i].x, 0, pipeWidth, pipes[i].y);
                 ctx.fillRect(pipes[i].x, pipes[i].y + pipeGap, pipeWidth, canvas.height);
 
-                // 점수 획득 및 난이도 상승
                 if (!pipes[i].passed && pipes[i].x + pipeWidth < player.x) {
                     score++;
                     pipes[i].passed = true;
-                    
-                    // 50점마다 가속 및 마하 수치 증가
-                    if (score % 50 === 0) {
-                        gameSpeed += 0.5;
-                    }
+                    if (score % 5 === 0) gameSpeed += 0.1; // 좀 더 부드러운 가속
                     updateHUD();
                 }
 
-                // 충돌
-                if (player.x < pipes[i].x + pipeWidth && player.x + player.width > pipes[i].x &&
-                    (player.y < pipes[i].y || player.y + player.height > pipes[i].y + pipeGap)) {
+                if (player.x + 5 < pipes[i].x + pipeWidth && player.x + player.width - 5 > pipes[i].x &&
+                    (player.y + 5 < pipes[i].y || player.y + player.height - 5 > pipes[i].y + pipeGap)) {
                     gameOver();
                 }
-
                 if (pipes[i].x + pipeWidth < 0) pipes.splice(i, 1);
             }
 
-            // 마하 수치 실시간 상승 시각화 (천천히 증가)
-            mach = 1.0 + (score * 0.01) + (frameCount * 0.0001);
+            mach = 1.0 + (score * 0.05) + (frameCount * 0.0005);
             updateHUD();
 
             if (player.y + player.height > canvas.height || player.y < 0) gameOver();
@@ -194,22 +222,14 @@
 
         function gameOver() {
             gameState = 'STOP';
-            playSound(150, 'square', 0.5); // 실패 소리
-            alert(`게임 오버!\n최종 점수: ${score}\n최고 속도: 마하 ${mach.toFixed(2)}`);
+            playSound(261.63, 'square', 0.5);
+            alert(`앗! 충돌했어요!\n점수: ${score}\n기록: 마하 ${mach.toFixed(2)}`);
             startUI.style.display = 'flex';
         }
 
-        // 입력 제어
-        const controlHandler = (e) => {
-            if (gameState === 'PLAYING') {
-                player.velocity = player.jump;
-                // 점프 시 짧은 소리 (선택 사항)
-                // playSound(600, 'sine', 0.05); 
-            }
-        };
-        window.addEventListener('mousedown', controlHandler);
-        window.addEventListener('keydown', (e) => { if(e.code === 'Space') controlHandler(); });
-
+        const jumpAction = () => { if (gameState === 'PLAYING') player.velocity = player.jump; };
+        window.addEventListener('mousedown', jumpAction);
+        window.addEventListener('keydown', (e) => { if(e.code === 'Space') jumpAction(); });
     </script>
 </body>
 </html>
