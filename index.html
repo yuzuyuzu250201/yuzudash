@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Yuzu Dash</title>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #222; font-family: sans-serif; overflow: hidden; }
+        canvas { background: #87CEEB; border: 4px solid #fff; display: none; }
+        #ui-layer { text-align: center; color: white; }
+        .btn { padding: 15px 30px; font-size: 20px; cursor: pointer; background: #ffcc00; border: none; border-radius: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <h1>Yuzu Dash</h1>
+        <p>클릭하여 점프하세요!</p>
+        <button class="btn" onclick="startGame()">게임 시작</button>
+    </div>
+
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const uiLayer = document.getElementById('ui-layer');
+
+        // 게임 상태
+        let gameState = 'START';
+        let score = 0;
+        
+        // 플레이어 설정
+        const yuzuImg = new Image();
+        yuzuImg.src = 'yuzu.webp'; // 이미지 파일명 지정
+
+        const player = {
+            x: 50,
+            y: 300,
+            width: 40,
+            height: 40,
+            gravity: 0.6,
+            velocity: 0,
+            jump: -10
+        };
+
+        // 장애물 설정
+        const pipes = [];
+        const pipeWidth = 50;
+        const pipeGap = 150;
+
+        function startGame() {
+            gameState = 'PLAYING';
+            uiLayer.style.display = 'none';
+            canvas.style.display = 'block';
+            resetGame();
+            animate();
+        }
+
+        function resetGame() {
+            player.y = 300;
+            player.velocity = 0;
+            pipes.length = 0;
+            score = 0;
+            frameCount = 0;
+        }
+
+        let frameCount = 0;
+
+        function animate() {
+            if (gameState !== 'PLAYING') return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. 플레이어 물리 적용
+            player.velocity += player.gravity;
+            player.y += player.velocity;
+
+            // 2. 점선 구 그리기 및 이미지 출력
+            ctx.save();
+            // 점선 스타일 설정
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(player.x + player.width/2, player.y + player.height/2, 35, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // 이미지 그리기
+            ctx.drawImage(yuzuImg, player.x, player.y, player.width, player.height);
+            ctx.restore();
+
+            // 3. 장애물 생성 및 이동
+            if (frameCount % 100 === 0) {
+                let pipeY = Math.random() * (canvas.height - pipeGap - 100) + 50;
+                pipes.push({ x: canvas.width, y: pipeY });
+            }
+
+            for (let i = pipes.length - 1; i >= 0; i--) {
+                pipes[i].x -= 3;
+
+                // 장애물 그리기
+                ctx.fillStyle = '#2e7d32';
+                ctx.fillRect(pipes[i].x, 0, pipeWidth, pipes[i].y);
+                ctx.fillRect(pipes[i].x, pipes[i].y + pipeGap, pipeWidth, canvas.height);
+
+                // 충돌 체크
+                if (player.x < pipes[i].x + pipeWidth && player.x + player.width > pipes[i].x &&
+                    (player.y < pipes[i].y || player.y + player.height > pipes[i].y + pipeGap)) {
+                    gameOver();
+                }
+
+                if (pipes[i].x + pipeWidth < 0) pipes.splice(i, 1);
+            }
+
+            // 바닥/천장 충돌
+            if (player.y + player.height > canvas.height || player.y < 0) gameOver();
+
+            frameCount++;
+            requestAnimationFrame(animate);
+        }
+
+        function gameOver() {
+            gameState = 'START';
+            alert("게임 오버! 점수: " + Math.floor(frameCount/100));
+            location.reload(); // 간단하게 초기화
+        }
+
+        window.addEventListener('mousedown', () => {
+            if (gameState === 'PLAYING') player.velocity = player.jump;
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && gameState === 'PLAYING') player.velocity = player.jump;
+        });
+
+    </script>
+</body>
+</html>
