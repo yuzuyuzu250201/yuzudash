@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Yuzu Dash - Patch 1.15.2</title>
+    <title>Yuzu Dash - Patch 1.15.3</title>
     <link href="https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap" rel="stylesheet">
     <style>
         :root { --primary-color: #ffda44; --accent-color: #ff7eb3; --neon-blue: #00f2fe; --prestige-gold: #ffaa00; }
@@ -47,7 +47,7 @@
         <div id="warning-label">!</div>
 
         <div id="start-ui" class="overlay">
-            <h1 style="font-size: 56px; margin: 0; text-shadow: 2px 2px #ff7eb3;">Yuzu Dash v1.15.2</h1>
+            <h1 style="font-size: 56px; margin: 0; text-shadow: 2px 2px #ff7eb3;">Yuzu Dash v1.15.3</h1>
             <div id="main-best-score" style="margin-bottom:15px; font-size: 20px;">최고 기록: 0</div>
             <div style="color: gold; font-size: 28px; margin-bottom: 20px;">Total Coin: <span id="start-total-coin">0</span></div>
             <button class="btn" onclick="prepareGame()">비행 시작!</button>
@@ -110,13 +110,9 @@
         let gameState = 'STOP', score = 0, lives = 3, gameSpeed = 2.5, currentMach = 1, frameCount = 0;
         let pipes = [], bullets = [], enemies = [], coins = [], invincible = 0, sessionCoins = 0;
         let canRevive = false, hoverTime = 2000, isHovering = false, bananaCounter = 0;
-
-        // 1. 최고 속도 상한 설정
         const MAX_GAME_SPEED = 7.0; 
 
         bgm.volume = data.bgmVol;
-        document.getElementById('bgm-vol').value = data.bgmVol;
-        document.getElementById('sfx-vol').value = data.sfxVol;
 
         const yuzuImg = new Image(); yuzuImg.src = 'yuzu.webp';
         const enemyImg = new Image(); enemyImg.src = 'enemy_wildyuzu.webp';
@@ -156,19 +152,30 @@
             else { btn.innerText = "구매 / 1000 코인"; btn.disabled = false; btn.style.background = "var(--prestige-gold)"; }
         }
 
+        // [버그 픽스] 가챠 확률 균등화 및 작동 보장
         function drawGacha() {
-            if (data.coins < 50) return;
+            if (data.coins < 50) { alert("코인이 부족해요!"); return; }
             data.coins -= 50;
-            const picked = ITEM_LIST[Math.floor(Math.random() * ITEM_LIST.length)];
-            if (data.collection.includes(picked.id)) data.coins += 10;
-            else data.collection.push(picked.id);
-            saveData(); renderCollection();
+            // Math.random()을 사용하여 ITEM_LIST의 모든 요소가 동일한 확률(1/6)을 가짐
+            const randomIndex = Math.floor(Math.random() * ITEM_LIST.length);
+            const picked = ITEM_LIST[randomIndex];
+            
+            if (data.collection.includes(picked.id)) {
+                data.coins += 10;
+                alert(`중복! [${picked.name}] -> 10 Coin 페이백!`);
+            } else {
+                data.collection.push(picked.id);
+                alert(`NEW! [${picked.name}] 획득!`);
+            }
+            saveData();
+            renderCollection();
+            updateDataUI();
         }
 
         function buyPrestige() {
             if (data.coins < 1000 || data.collection.includes('proud')) return;
             data.coins -= 1000; data.collection.push('proud');
-            saveData(); renderCollection();
+            saveData(); renderCollection(); updateDataUI();
         }
 
         function renderCollection() {
@@ -182,7 +189,7 @@
             const isOwned = data.collection.includes(item.id);
             const isActive = data.activeItems.includes(item.id);
             const slot = document.createElement('div');
-            slot.className = `item-slot ${isOwned ? 'owned' : ''} ${isActive ? 'active' : ''} ${item.id === 'proud' ? 'prestige' : ''}`;
+            slot.className = `item-slot ${isOwned ? 'owned' : ''} ${isActive ? 'active' : ''}`;
             slot.innerHTML = `<img src="${item.img}"><span class="name">${isOwned ? item.name : '???'}</span><span class="desc">${isOwned ? item.desc : (item.id === 'proud' ? '명예 정가' : '미획득')}</span>`;
             slot.onclick = () => { if(isOwned) { if(isActive) data.activeItems = data.activeItems.filter(i => i !== item.id); else data.activeItems.push(item.id); saveData(); renderCollection(); } };
             return slot;
@@ -195,7 +202,6 @@
             localStorage.setItem('yuzuHighScore', data.highscore);
             localStorage.setItem('yuzuBgmVol', data.bgmVol);
             localStorage.setItem('yuzuSfxVol', data.sfxVol);
-            updateDataUI();
         }
 
         function prepareGame() {
@@ -204,7 +210,14 @@
             const cntUI = document.getElementById('count-ui');
             const timer = setInterval(() => {
                 if (count >= 0) { cntUI.innerText = count === 0 ? "GO!" : count; cntUI.style.display = 'flex'; playSound(523, 'sine', 0.1); count--; }
-                else { clearInterval(timer); cntUI.style.display = 'none'; gameState = 'PLAYING'; bgm.play(); animate(); }
+                else { 
+                    clearInterval(timer); cntUI.style.display = 'none'; 
+                    gameState = 'PLAYING'; 
+                    // [버그 픽스] BGM을 처음부터 재생
+                    bgm.currentTime = 0;
+                    bgm.play(); 
+                    animate(); 
+                }
             }, 800);
         }
 
@@ -229,29 +242,26 @@
             const newMach = 1 + Math.floor(score / 25);
             if (newMach > currentMach) {
                 currentMach = newMach;
-                // 1. 속도 고정 시스템: MAX_GAME_SPEED를 넘지 않음
-                if (gameSpeed < MAX_GAME_SPEED) {
-                    gameSpeed += 0.5;
-                }
+                if (gameSpeed < MAX_GAME_SPEED) gameSpeed += 0.5;
                 document.getElementById('mach-display').innerText = `🚀 마하 ${currentMach}`;
                 playSound(880, 'triangle', 0.2);
             }
+            // [밸런스] 1000점 클리어 체크
+            if (score >= 1000) { gameClear(); }
         }
 
         function drawVisuals() {
-            // 2. 배경색 진화 로직 (500점 단위로 색상 변경 -> 4500점 무지개)
             let colorA = '#0f0c29', colorB = '#302b63', colorC = '#24243e';
 
-            if (score >= 4500) {
-                // 4500점 이상: 무지개색 일렁임 (Hue 로테이션)
+            // [밸런스] 무지개 연출 목표치 1000으로 하향 조정
+            if (score >= 1000) {
                 const hue = (frameCount % 360);
                 colorA = `hsl(${hue}, 50%, 15%)`;
                 colorB = `hsl(${(hue + 60) % 360}, 50%, 25%)`;
                 colorC = `hsl(${(hue + 120) % 360}, 50%, 15%)`;
-            } else if (score >= 500) {
-                // 500점 단위로 배경 톤 변경
-                const stage = Math.floor(score / 500);
-                const shift = stage * 30; // 색상 변조값
+            } else if (score >= 100) { // 100점 단위로 배경색이 눈에 띄게 변함
+                const stage = Math.floor(score / 100);
+                const shift = stage * 30;
                 colorA = `hsl(${240 + shift}, 50%, 10%)`;
                 colorB = `hsl(${260 + shift}, 40%, 20%)`;
                 colorC = `hsl(${280 + shift}, 50%, 10%)`;
@@ -261,7 +271,6 @@
             bgGrad.addColorStop(0, colorA); bgGrad.addColorStop(0.5, colorB); bgGrad.addColorStop(1, colorC);
             ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 배경 별 효과
             ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
             for(let i=0; i<20; i++) {
                 let x = (i * 47 + frameCount * 0.5) % canvas.width;
@@ -276,6 +285,15 @@
             ctx.shadowBlur = 12; ctx.shadowColor = '#00f2fe';
             ctx.fillStyle = pipeGrad; ctx.fillRect(x, 0, 70, y); ctx.fillRect(x, y + 260, 70, canvas.height);
             ctx.shadowBlur = 0; ctx.fillStyle = "white"; ctx.fillRect(x - 3, y - 12, 76, 12); ctx.fillRect(x - 3, y + 260, 76, 12);
+        }
+
+        function gameClear() {
+            gameState = 'STOP'; bgm.pause();
+            data.coins += sessionCoins + 500; // 클리어 보너스
+            if(score > data.highscore) data.highscore = score;
+            saveData();
+            alert("✨ CONGRATULATIONS! ✨\n1000점 도달! 유즈 대시 클리어!\n보너스 코인 500개를 획득했습니다!");
+            openPage('start-ui');
         }
 
         function animate() {
@@ -364,7 +382,11 @@
             } 
         }
 
-        function gameOver() { gameState = 'STOP'; bgm.pause(); data.coins += sessionCoins; if(score > data.highscore) data.highscore = score; saveData(); openPage('start-ui'); }
+        function gameOver() { 
+            gameState = 'STOP'; bgm.pause(); bgm.currentTime = 0; // 게임 오버 시에도 리셋
+            data.coins += sessionCoins; if(score > data.highscore) data.highscore = score; 
+            saveData(); openPage('start-ui'); 
+        }
 
         window.addEventListener('keydown', (e) => { 
             if (gameState==='PLAYING') { 
